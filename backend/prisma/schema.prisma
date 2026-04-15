@@ -1,0 +1,341 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED_FROZEN
+  DELETED
+}
+
+enum Role {
+  VENUE
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum WalletTxType {
+  GAME_EARN
+  PROMO_CODE
+  PRIZE_PURCHASE
+  MANUAL_ADJUSTMENT
+}
+
+enum SessionStatus {
+  STARTED
+  SUBMITTED
+  REJECTED
+  EXPIRED
+}
+
+enum ReviewStatus {
+  ACCEPTED
+  REJECTED
+  MANUAL_REVIEW
+}
+
+enum OrderStatus {
+  CREATED
+  PAID
+  CANCELLED
+}
+
+enum ClaimStatus {
+  PURCHASED
+  REDEEMED
+  EXPIRED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketChannel {
+  IN_APP
+  TELEGRAM
+}
+
+model User {
+  id          String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone       String     @unique
+  username    String?    @unique
+  displayName String?
+  status      UserStatus @default(ACTIVE)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+  deletedAt   DateTime?
+
+  wallet             Wallet?
+  roleAssignments    RoleAssignment[]          @relation("UserRoleAssignments")
+  rolesAssignedByMe  RoleAssignment[]          @relation("AssignedByMe")
+  dailyProgression   DailyAttemptProgression[]
+  walletTransactions WalletTransaction[]
+  gameSessions       GameSession[]
+  orders             Order[]
+  prizeClaims        PrizeClaim[]              @relation("UserClaims")
+  redeemedByMe       PrizeClaim[]              @relation("RedeemedByVenueUser")
+  promoRedemptions   PromoRedemption[]
+  supportTickets     SupportTicket[]
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+model RoleAssignment {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String   @db.Uuid
+  role             Role
+  venueNetworkId   String?  @db.Uuid
+  assignedByUserId String?  @db.Uuid
+  createdAt        DateTime @default(now())
+
+  user           User          @relation("UserRoleAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  venueNetwork   VenueNetwork? @relation(fields: [venueNetworkId], references: [id], onDelete: SetNull)
+  assignedByUser User?         @relation("AssignedByMe", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@map("role_assignments")
+}
+
+model IdentityCooldown {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phoneHash    String   @unique
+  blockedUntil DateTime
+  reason       String
+
+  @@map("identity_cooldowns")
+}
+
+model VenueNetwork {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name     String
+  isActive Boolean @default(true)
+
+  roles RoleAssignment[]
+  games Game[]
+
+  @@map("venue_networks")
+}
+
+model Game {
+  id                 String  @id // String PK (e.g. ARENA_RUNNER)
+  name               String
+  venueNetworkId     String?  @db.Uuid
+  scoreToPointsRatio Decimal @db.Decimal(10, 4)
+  maxScorePerMinute  Int
+  dailyPointsLimit   Int     @default(5000)
+  dailyAttemptsLimit Int     @default(5)
+  isActive           Boolean @default(true)
+  imageUrl           String?
+  displayName        String?
+
+  venueNetwork      VenueNetwork?             @relation(fields: [venueNetworkId], references: [id], onDelete: SetNull)
+  dailyProgressions DailyAttemptProgression[]
+  gameSessions      GameSession[]
+  prizes            Prize[]
+
+  @@map("games")
+}
+
+model DailyAttemptProgression {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String   @db.Uuid
+  gameId       String
+  dateKey      DateTime @db.Date // Asia/Tashkent
+  attemptsUsed Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game Game @relation(fields: [gameId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, gameId, dateKey])
+  @@map("daily_attempt_progressions")
+}
+
+model Wallet {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @unique @db.Uuid
+  balance   BigInt   @default(0)
+  updatedAt DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  walletId       String       @db.Uuid
+  userId         String       @db.Uuid
+  type           WalletTxType
+  amount         Int
+  balanceBefore  BigInt
+  balanceAfter   BigInt
+  referenceType  String
+  referenceId    String
+  idempotencyKey String?
+  createdAt      DateTime     @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@map("wallet_transactions")
+}
+
+model GameSession {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String        @db.Uuid
+  gameId          String
+  status          SessionStatus @default(STARTED)
+  startedAt       DateTime      @default(now())
+  endedAt         DateTime?
+  sessionTokenJti String        @unique
+  ipHash          String?
+  deviceId        String?
+  clientVersion   String?
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game   Game        @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  result GameResult?
+
+  @@map("game_sessions")
+}
+
+model GameResult {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId         String       @unique @db.Uuid
+  rawScore          Int
+  timePlayedSeconds Int
+  awardedPoints     Int
+  reviewStatus      ReviewStatus @default(ACCEPTED)
+  rejectReason      String?
+  createdAt         DateTime     @default(now())
+
+  session GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("game_results")
+}
+
+model Prize {
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  cost       Int
+  gameId     String
+  imageUrl   String
+  stockCount Int     @default(0)
+  isActive   Boolean @default(true)
+
+  game   Game         @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  orders Order[]
+  claims PrizeClaim[]
+
+  @@map("prizes")
+}
+
+model Order {
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String      @db.Uuid
+  prizeId        String      @db.Uuid
+  status         OrderStatus @default(CREATED)
+  cost           Int
+  idempotencyKey String
+  createdAt      DateTime    @default(now())
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prize Prize       @relation(fields: [prizeId], references: [id], onDelete: Restrict)
+  claim PrizeClaim?
+
+  @@unique([userId, idempotencyKey])
+  @@map("orders")
+}
+
+model PrizeClaim {
+  id                    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String      @db.Uuid
+  prizeId               String      @db.Uuid
+  orderId               String      @unique @db.Uuid
+  qrCodeData            String      @unique
+  status                ClaimStatus @default(PURCHASED)
+  expiresAt             DateTime
+  redeemedAt            DateTime?
+  redeemedByVenueUserId String?     @db.Uuid
+
+  user            User  @relation("UserClaims", fields: [userId], references: [id], onDelete: Cascade)
+  prize           Prize @relation(fields: [prizeId], references: [id], onDelete: Restrict)
+  order           Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  redeemedByVenue User? @relation("RedeemedByVenueUser", fields: [redeemedByVenueUserId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("prize_claims")
+}
+
+model PromoCode {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String   @unique
+  pointsReward    Int
+  maxUsesGlobally Int
+  currentUses     Int      @default(0)
+  startDate       DateTime
+  endDate         DateTime
+  isActive        Boolean  @default(true)
+
+  redemptions PromoRedemption[]
+
+  @@map("promo_codes")
+}
+
+model PromoRedemption {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @db.Uuid
+  promoCodeId String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  promoCode PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, promoCodeId])
+  @@map("promo_redemptions")
+}
+
+model SupportTicket {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String        @db.Uuid
+  status    TicketStatus  @default(OPEN)
+  message   String
+  channel   TicketChannel @default(IN_APP)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("support_tickets")
+}
+
+model AuditLog {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorUserId  String?  @db.Uuid
+  actorRole    String
+  action       String
+  resourceType String
+  resourceId   String
+  beforeJson   Json?
+  afterJson    Json?
+  createdAt    DateTime @default(now())
+
+  user User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}
