@@ -1,8 +1,9 @@
 import { List, Create, Edit, useTable, useForm, DateField, useSelect, EditButton, DeleteButton } from "@refinedev/antd";
 import { Table, Input, Switch, InputNumber, Form, DatePicker, Typography, Space, Button, Select, Tabs, Upload, message, Card, Row, Col, Statistic, Divider } from "antd";
-import { useTranslate, useList } from "@refinedev/core";
+import { useTranslate, useList, useUpdate } from "@refinedev/core";
 import dayjs from "dayjs";
 import { useState } from "react";
+
 
 const FileUploadField = ({ value, onChange }: any) => {
   const t = useTranslate();
@@ -281,6 +282,8 @@ export const VenueNetworksEdit = () => {
 export const GamesList = () => {
   const t = useTranslate();
   const { tableProps } = useTable();
+  const { mutate } = useUpdate();
+  
   return (
     <List title={t("games.games", "Игры")}>
       <Table {...tableProps} rowKey="id">
@@ -288,7 +291,16 @@ export const GamesList = () => {
         <Table.Column dataIndex="dailyPointsLimit" title="Лимит баллов (Дн)" />
         <Table.Column dataIndex="dailyAttemptsLimit" title="Попыток (Дн)" />
         <Table.Column dataIndex="maxScorePerMinute" title="Порог АЧ (Очк/мин)" />
-        <Table.Column dataIndex="isActive" title={t("games.params.isActive", "Активно")} render={(val) => <Switch checked={val} disabled />} />
+        <Table.Column 
+          dataIndex="isActive" 
+          title={t("games.params.isActive", "Активно")} 
+          render={(val, record: any) => (
+            <Switch 
+              checked={val} 
+              onChange={(checked) => mutate({ resource: "games", id: record.id, values: { isActive: checked } })} 
+            />
+          )} 
+        />
         <Table.Column title="Действия" render={(_, record: any) => <EditButton hideText size="small" recordItemId={record.id} />} />
       </Table>
     </List>
@@ -328,8 +340,8 @@ export const GamesEdit = () => {
       <Form {...formProps} layout="vertical">
         <Typography.Title level={5}>Основные настройки</Typography.Title>
         <Form.Item label="Название" name="name"><Input disabled /></Form.Item>
-        <Form.Item label="Заведение" name="venueNetworkId" rules={[{ required: true }]}>
-          <Select {...venueSelectProps} style={{ width: "100%" }} />
+        <Form.Item label="Заведение" name="venueNetworkId">
+          <Select {...venueSelectProps} style={{ width: "100%" }} allowClear />
         </Form.Item>
         <Form.Item label="Дневной лимит баллов на 1 игрока" name="dailyPointsLimit" rules={[{ required: true }]}>
           <InputNumber min={0} style={{ width: "100%" }} />

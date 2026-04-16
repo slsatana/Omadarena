@@ -27,7 +27,7 @@ export class GamesService {
   }
 
   async getGames(userId: string) {
-    const games = await this.prisma.game.findMany({ where: { isActive: true }, include: { venueNetwork: true } });
+    const games = await this.prisma.game.findMany({ include: { venueNetwork: true } });
     const dateKey = this.getTashkentDate();
     const startOfDay = dateKey;
     const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
@@ -65,7 +65,8 @@ export class GamesService {
         pointsEarnedToday,
         dailyPointsLimit: g.dailyPointsLimit,
         imageUrl: g.imageUrl,
-        displayName: g.displayName
+        displayName: g.displayName,
+        isActive: g.isActive
       };
     });
   }

@@ -428,15 +428,19 @@ export const EventsListScreen = () => {
       }
     ];
 
-    const activeGamesList = Object.values(gamesStats) as any[];
+    const activeGamesList = (Object.values(gamesStats) as any[]).sort((a, b) => {
+        if (a.venueNetworkName && !b.venueNetworkName) return -1;
+        if (!a.venueNetworkName && b.venueNetworkName) return 1;
+        return 0;
+    });
     
     let arenas = activeGamesList.map((stat, index) => {
         const staticTemplate = staticArenas.find(a => a.gameId === stat.id);
         return {
            id: index + 100, // Safe synthetic id
            gameId: stat.id,
-           title: stat.displayName || staticTemplate?.title || stat.name || stat.id,
-           status: t.events.active,
+           title: stat.isActive === false ? t.events.comingSoon : (stat.displayName || staticTemplate?.title || stat.name || stat.id),
+           status: stat.isActive === false ? t.events.comingSoon : t.events.active,
            icon: staticTemplate?.icon || <Gamepad2 className="text-[var(--primary)]" size={28} />,
            color: staticTemplate?.color || "bg-[var(--primary)]/10",
            date: staticTemplate?.date || "New",
@@ -467,12 +471,9 @@ export const EventsListScreen = () => {
         </div>
 
         <div className="flex-1 overflow-y-auto pb-20 no-scrollbar space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-bold tracking-tight">{t.events.title}</h3>
-          </div>
 
           <div className="grid grid-cols-2 gap-x-4 gap-y-6">
-            {arenas.filter(a => a.status !== t.events.comingSoon).map((arena) => (
+            {arenas.map((arena) => (
               <motion.div
                 key={arena.id}
                 whileTap={{ scale: 0.95 }}
