@@ -148,7 +148,7 @@ export const LoginScreen = () => {
         return;
       }
       if (phone.length < 13) {
-        setError('Неверный формат номера');
+        setError(t.errors?.invalidPhone || 'Неверный формат номера');
         return;
       }
       try {
@@ -163,7 +163,7 @@ export const LoginScreen = () => {
       }
     } else {
       if (!isAdminLogin && code.length !== 6) {
-        setError('Код должен состоять из 6 цифр');
+        setError(t.errors?.invalidCodeLength || 'Код должен состоять из 6 цифр');
         return;
       }
       setLoading(true);
@@ -740,15 +740,6 @@ export const ResultScreen = () => {
           {t.result.youWon} <span className="text-white font-bold">{user.highScore}</span> {t.result.prizes}
         </p>
 
-        <div className="w-full bg-[var(--surface)] rounded-[32px] p-6 border border-[var(--border)] mb-6">
-          <p className="text-[10px] uppercase font-bold text-[var(--text-muted)] mb-2 tracking-widest">{t.result.yourPrize}</p>
-          <div className="flex items-center justify-center gap-3 mb-1">
-            <Medal size={24} className="text-[var(--secondary)]" />
-            <span className="text-3xl font-black text-white">#12</span>
-          </div>
-          <p className="text-[var(--text-muted)] text-sm font-medium">{t.result.noPrizes}</p>
-        </div>
-
         <div className="w-full space-y-4 mt-auto">
           <Button onClick={() => setScreen('GAME_BOARD')} className="w-full py-5 text-xl rounded-[24px]">
             {t.result.viewBoard}
@@ -805,7 +796,7 @@ export const PrizeScannerScreen = () => {
       <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
         <div className="flex justify-between items-center mb-8">
           <BackButton onClick={() => setScreen('VENUE_DASHBOARD')} />
-          <h2 className="text-xl font-bold">Сканер QR-кодов</h2>
+          <h2 className="text-xl font-bold">{t.qrScanner?.scannerTitle || 'Сканер QR-кодов'}</h2>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center">
@@ -820,9 +811,9 @@ export const PrizeScannerScreen = () => {
                   type="text" 
                   value={qrData} onChange={e => setQrData(e.target.value)}
                   className="bg-black text-white px-4 py-4 rounded-xl w-full text-center font-bold text-xl border border-zinc-700"
-                  placeholder="Ввести код вручную..."
+                  placeholder={t.qrScanner?.manualInput || "Ввести код вручную..."}
                 />
-                <Button onClick={() => handleScan(qrData)} className="mt-4 w-full bg-[var(--primary)] text-zinc-950 py-4 text-lg font-bold">Симулировать Скан</Button>
+                <Button onClick={() => handleScan(qrData)} className="mt-4 w-full bg-[var(--primary)] text-zinc-950 py-4 text-lg font-bold">{t.qrScanner?.simulateScan || 'Симулировать Скан'}</Button>
               </div>
             </div>
           ) : result === 'success' ? (
@@ -830,26 +821,26 @@ export const PrizeScannerScreen = () => {
               <div className="w-24 h-24 bg-[var(--success)]/20 rounded-full flex items-center justify-center mx-auto mb-6 text-[var(--success)]">
                 <CheckCircle2 size={48} />
               </div>
-              <h3 className="text-3xl font-black mb-2 text-[var(--success)]">QR-код валиден!</h3>
-              <p className="text-[var(--text-muted)] mb-8">Приз можно выдавать.</p>
+              <h3 className="text-3xl font-black mb-2 text-[var(--success)]">{t.qrScanner?.validWait || 'QR-код валиден!'}</h3>
+              <p className="text-[var(--text-muted)] mb-8">{t.qrScanner?.validDesc || 'Приз можно выдавать.'}</p>
               
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 mb-8 text-left">
-                <p className="text-sm text-[var(--text-muted)] mb-1">Приз</p>
+                <p className="text-sm text-[var(--text-muted)] mb-1">{t.qrScanner?.prizeLabel || 'Приз'}</p>
                 <p className="font-bold text-xl mb-4">{claimInfo?.prizeName}</p>
 
-                <p className="text-sm text-[var(--text-muted)] mb-1">Игрок</p>
+                <p className="text-sm text-[var(--text-muted)] mb-1">{t.qrScanner?.playerLabel || 'Игрок'}</p>
                 <p className="font-bold text-xl mb-4">{claimInfo?.userName}</p>
 
-                <p className="text-sm text-[var(--text-muted)] mb-1">Статус</p>
-                <p className="font-bold text-xl text-[var(--success)]">Не выдан</p>
+                <p className="text-sm text-[var(--text-muted)] mb-1">{t.qrScanner?.statusLabel || 'Статус'}</p>
+                <p className="font-bold text-xl text-[var(--success)]">{t.qrScanner?.notIssued || 'Не выдан'}</p>
               </div>
 
               <div className="space-y-4">
                 <Button onClick={handleRedeem} className="w-full py-4 text-lg font-bold bg-[var(--primary)] text-zinc-950">
-                  Выдать приз
+                  {t.qrScanner?.issuePrize || 'Выдать приз'}
                 </Button>
                 <Button onClick={() => { setIsScanning(true); setResult('idle'); setQrData(''); }} className="w-full py-4 text-lg font-bold bg-[var(--surface)] text-white">
-                  Сканировать следующий
+                  {t.qrScanner?.nextScan || 'Сканировать следующий'}
                 </Button>
               </div>
             </motion.div>
@@ -858,10 +849,10 @@ export const PrizeScannerScreen = () => {
               <div className="w-24 h-24 bg-[var(--danger)]/20 rounded-full flex items-center justify-center mx-auto mb-6 text-[var(--danger)]">
                 <XCircle size={48} />
               </div>
-              <h3 className="text-3xl font-black mb-2 text-[var(--danger)]">Ошибка</h3>
-              <p className="text-[var(--text-muted)] mb-8">QR-код не найден, истек или принадлежит другой сети заведений.</p>
+              <h3 className="text-3xl font-black mb-2 text-[var(--danger)]">{t.qrScanner?.invalidQr || 'Ошибка'}</h3>
+              <p className="text-[var(--text-muted)] mb-8">{t.qrScanner?.invalidDesc || 'QR-код не найден, истек или принадлежит другой сети заведений.'}</p>
               <Button onClick={() => { setIsScanning(true); setResult('idle'); setQrData(''); }} className="w-full py-4 text-lg font-bold bg-[var(--primary)] text-zinc-950">
-                Попробовать снова
+                {t.qrScanner?.retry || 'Попробовать снова'}
               </Button>
             </motion.div>
           )}
@@ -887,10 +878,10 @@ export const VenueDashboard = () => {
         <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4">
             <BackButton onClick={() => setScreen('PROFILE')} />
-            <h2 className="text-2xl font-extrabold tracking-tight">Venue Dashboard</h2>
+            <h2 className="text-2xl font-extrabold tracking-tight">{t.venueDashboard?.title || 'Venue Dashboard'}</h2>
           </div>
           <div className="bg-[var(--arena-cyan)]/20 text-[var(--arena-cyan)] text-[10px] font-bold px-3 py-1 rounded-full border border-[var(--arena-cyan)]/30">
-            {user.venueGameId || 'ARENA_RUNNER'}
+            {t.gameDetails[user.venueGameId as keyof typeof t.gameDetails]?.title || t.gameDetails.ARENA_RUNNER.title}
           </div>
         </div>
 
@@ -898,28 +889,28 @@ export const VenueDashboard = () => {
           <div className="bg-[var(--surface)] p-5 rounded-[32px] border border-[var(--border)]">
             <Users size={20} className="text-[var(--arena-cyan)] mb-2" />
             <p className="text-2xl font-black">{stats.players.toLocaleString()}</p>
-            <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">Total Players</p>
+            <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">{t.venueDashboard?.totalPlayers || 'Total Players'}</p>
           </div>
           <div className="bg-[var(--surface)] p-5 rounded-[32px] border border-[var(--border)]">
             <Gift size={20} className="text-[var(--secondary)] mb-2" />
             <p className="text-2xl font-black">{stats.prizes}</p>
-            <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">Prizes Issued</p>
+            <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">{t.venueDashboard?.prizesIssued || 'Prizes Issued'}</p>
           </div>
         </div>
 
         <div className="bg-[var(--surface)] p-6 rounded-[32px] border border-[var(--border)] mb-8">
-          <h3 className="text-lg font-bold mb-4">Game Statistics</h3>
+          <h3 className="text-lg font-bold mb-4">{t.venueDashboard?.gameStats || 'Game Statistics'}</h3>
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--text-muted)] font-medium">Avg. Score</span>
+              <span className="text-sm text-[var(--text-muted)] font-medium">{t.venueDashboard?.avgScore || 'Avg. Score'}</span>
               <span className="font-bold">{stats.avgScore.toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--text-muted)] font-medium">Daily Active</span>
+              <span className="text-sm text-[var(--text-muted)] font-medium">{t.venueDashboard?.dailyActive || 'Daily Active'}</span>
               <span className="font-bold">{stats.active}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--text-muted)] font-medium">Pending Prizes</span>
+              <span className="text-sm text-[var(--text-muted)] font-medium">{t.venueDashboard?.pendingPrizes || 'Pending Prizes'}</span>
               <span className="font-bold text-[var(--secondary)]">{stats.pending}</span>
             </div>
           </div>
@@ -929,7 +920,7 @@ export const VenueDashboard = () => {
           onClick={() => setScreen('PRIZE_SCANNER')}
           className="w-full py-6 rounded-[24px] flex items-center justify-center gap-3 text-xl bg-[var(--arena-cyan)] text-zinc-950"
         >
-          <QrCode size={24} /> Scan Prize QR
+          <QrCode size={24} /> {t.venueDashboard?.scanPrize || 'Scan Prize QR'}
         </Button>
       </div>
     </ScreenWrapper>
@@ -940,6 +931,13 @@ export const AdminDashboard = () => {
   const { setScreen, prizes, setPrizes, t } = useGame();
   const [selectedGameFilter, setSelectedGameFilter] = useState<string>('ARENA_RUNNER');
   const [editingPrize, setEditingPrize] = useState<any>(null);
+  const [adminStats, setAdminStats] = useState<any>({ totalUsers: 0, topRegion: '...' });
+
+  useEffect(() => {
+    api.get('/admin/stats').then(res => {
+      if (res.data) setAdminStats(res.data);
+    }).catch(console.error);
+  }, []);
 
   const games = [
     { id: 'ARENA_RUNNER', name: t.gameDetails.ARENA_RUNNER.title },
@@ -1071,11 +1069,11 @@ export const AdminDashboard = () => {
 
         <div className="mt-8 grid grid-cols-2 gap-4">
           <div className="bg-[var(--surface)] p-5 rounded-[32px] border border-[var(--border)] text-center">
-            <p className="text-2xl font-black">{prizes.length * 4120}</p>
+            <p className="text-2xl font-black">{adminStats.totalUsers}</p>
             <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">Total Users</p>
           </div>
           <div className="bg-[var(--surface)] p-5 rounded-[32px] border border-[var(--border)] text-center">
-            <p className="text-2xl font-black"> {t.leaderboard.title === 'Лидеры' ? 'Ташкент' : 'Tashkent'} </p>
+            <p className="text-2xl font-black">{adminStats.topRegion}</p>
             <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">Top Region</p>
           </div>
         </div>
@@ -1233,16 +1231,6 @@ export const LeaderboardScreen = () => {
           ))}
         </div>
 
-        <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4 mb-6 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-500">
-            <Zap size={20} />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-green-500">Great job!</p>
-            <p className="text-xs text-green-500/80">You overtook 124 people today!</p>
-          </div>
-        </div>
-
         <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-6">
           {players.map((player, i) => (
             <motion.div
@@ -1303,16 +1291,30 @@ export const ProfileScreen = () => {
   const [adminError, setAdminError] = useState('');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
+  const [adminStats, setAdminStats] = useState<any>({ totalUsers: 0, retention: 0 });
+
+  useEffect(() => {
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+      api.get('/admin/stats').then(res => {
+        if (res.data) setAdminStats(res.data);
+      }).catch(console.error);
+    }
+  }, [user.role]);
 
   const fetchHistory = () => {
     api.get('/wallet/history').then(res => setHistory(res.data)).catch(e => console.error(e));
   };
 
   const handleAdminAuth = () => {
-    if (adminPass === '1553688') {
-      window.location.href = window.location.protocol + '//' + window.location.hostname + ':8081';
+    // @ts-ignore
+    const correctPassword = import.meta.env.VITE_ADMIN_PASSWORD || '1553688';
+    if (adminPass === correctPassword) {
+      const token = localStorage.getItem('arena_token');
+      // @ts-ignore
+      const adminUrl = import.meta.env.VITE_ADMIN_URL || (window.location.protocol + '//' + window.location.hostname + ':8080');
+      window.location.href = adminUrl + (token ? '?token=' + token : '');
     } else {
-      setAdminError('Неверный пароль доступа');
+      setAdminError(t.errors?.adminPassError || 'Неверный пароль доступа');
     }
   };
 
@@ -1465,11 +1467,11 @@ export const ProfileScreen = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-[var(--surface)] p-4 rounded-[24px] border border-[var(--border)]">
-                  <p className="text-lg font-black">12.5k</p>
+                  <p className="text-lg font-black">{adminStats.totalUsers > 1000 ? (adminStats.totalUsers/1000).toFixed(1) + 'k' : adminStats.totalUsers}</p>
                   <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Users</p>
                 </div>
                 <div className="bg-[var(--surface)] p-4 rounded-[24px] border border-[var(--border)]">
-                  <p className="text-lg font-black">84%</p>
+                  <p className="text-lg font-black">{adminStats.retention}%</p>
                   <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Retention</p>
                 </div>
               </div>
@@ -1497,21 +1499,21 @@ export const ProfileScreen = () => {
             
             <button 
               onClick={async () => {
-                const confirmed = window.confirm('Вы уверены, что хотите НАВСЕГДА удалить свой аккаунт? Все ваши очки и достижения будут стерты, а вы не сможете зарегистрироваться на этот номер в течение 1 месяца!');
+                const confirmed = window.confirm(t.accountChecks?.deleteWarning || 'Вы уверены, что хотите НАВСЕГДА удалить свой аккаунт? Все ваши очки и достижения будут стерты, а вы не сможете зарегистрироваться на этот номер в течение 1 месяца!');
                 if (confirmed) {
                   try {
                     await api.delete('/auth/me');
-                    alert('Ваш аккаунт был успешно удален.');
+                    alert(t.accountChecks?.deleteSuccess || 'Ваш аккаунт был успешно удален.');
                     logout();
                     setScreen('WELCOME');
                   } catch (e: any) {
-                    alert(e.response?.data?.message || 'Ошибка удаления аккаунта');
+                    alert(e.response?.data?.message || t.accountChecks?.deleteError || 'Ошибка удаления аккаунта');
                   }
                 }
               }}
               className="w-full mt-4 p-4 text-[var(--danger)]/80 hover:text-[var(--danger)] bg-[var(--danger)]/5 border border-[var(--danger)]/20 rounded-[24px] font-black text-sm uppercase tracking-widest text-center active:scale-[0.98] transition-all"
             >
-              Удалить аккаунт
+              {t.accountChecks?.deleteAccount || 'Удалить аккаунт'}
             </button>
           </div>
         </div>
@@ -1572,9 +1574,9 @@ export const ProfileScreen = () => {
             <div className="bg-[var(--bg)] p-6 rounded-[32px] w-full max-w-sm border border-[var(--border)] shadow-2xl">
               <h3 className="text-xl font-black mb-2 tracking-tight flex items-center gap-2">
                 <Shield size={20} className="text-[var(--secondary)]" /> 
-                Переход в Админ-Панель
+                {t.accountChecks?.adminPanelEnter || 'Переход в Админ-Панель'}
               </h3>
-              <p className="text-[var(--text-muted)] text-sm font-medium mb-6">Введите универсальный пароль администратора.</p>
+              <p className="text-[var(--text-muted)] text-sm font-medium mb-6">{t.accountChecks?.adminPanelDesc || 'Введите универсальный пароль администратора.'}</p>
               
               <input 
                 type="password" 
@@ -1591,13 +1593,13 @@ export const ProfileScreen = () => {
                   onClick={() => { setShowAdminPrompt(false); setAdminPass(''); setAdminError(''); }}
                   className="flex-1 py-3.5 bg-[var(--surface)] text-white font-bold rounded-2xl active:scale-95 transition-transform"
                 >
-                  Отмена
+                  {t.accountChecks?.cancel || 'Отмена'}
                 </button>
                 <button 
                   onClick={handleAdminAuth}
                   className="flex-1 py-3.5 bg-[var(--secondary)] text-black font-extrabold rounded-2xl active:scale-95 transition-transform"
                 >
-                  Войти
+                  {t.accountChecks?.submit || 'Войти'}
                 </button>
               </div>
             </div>

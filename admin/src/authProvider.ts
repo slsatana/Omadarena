@@ -4,7 +4,8 @@ import { axiosInstance } from "@refinedev/simple-rest";
 export { axiosInstance };
 
 // API setup
-const API_URL = `http://${window.location.hostname}:3000/api/v1`;
+// @ts-ignore
+const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3000/api/v1`;
 axiosInstance.defaults.baseURL = API_URL;
 
 // Setup the interceptor on the exact axios instance used by the simple-rest provider

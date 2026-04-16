@@ -5,13 +5,14 @@ import dayjs from "dayjs";
 import { useState } from "react";
 
 const FileUploadField = ({ value, onChange }: any) => {
+  const t = useTranslate();
   const handleChange = (info: any) => {
     if (info.file.status === 'done') {
-      message.success(`Загружено успешно`);
+      message.success(t("messages.uploadSuccess", "Загружено успешно"));
       // Since our server returns { url: "..." }
       onChange(info.file.response.url);
     } else if (info.file.status === 'error') {
-      message.error(`Ошибка загрузки`);
+      message.error(t("messages.uploadError", "Ошибка загрузки"));
     }
   };
 
@@ -19,7 +20,8 @@ const FileUploadField = ({ value, onChange }: any) => {
     <Space direction="vertical" style={{ width: '100%' }}>
       <Upload
         name="file"
-        action={`http://${window.location.hostname}:3000/api/v1/upload`}
+        // @ts-ignore
+        action={`${import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3000/api/v1`}/upload`}
         showUploadList={false}
         onChange={handleChange}
         accept="image/*"
@@ -428,7 +430,12 @@ export const PrizesCreate = () => {
         <Form.Item label="Игра" name="gameId" rules={[{ required: true }]} initialValue={initialGameId || undefined}>
           <Select {...gameSelectProps} style={{ width: "100%" }} />
         </Form.Item>
-        <Form.Item label="Изображение" name="imageUrl" rules={[{ required: true }]}><FileUploadField /></Form.Item>
+        <Form.Item label="Изображение (В магазине / Тайная коробка)" name="hiddenImageUrl" tooltip="То, что видит юзер до покупки.">
+          <FileUploadField />
+        </Form.Item>
+        <Form.Item label="Изображение (Реальный приз)" name="imageUrl" rules={[{ required: true }]} tooltip="Картинка, которая откроется после покупки.">
+          <FileUploadField />
+        </Form.Item>
         <Form.Item label={t("prizes.params.stockCount", "В наличии")} name="stockCount" rules={[{ required: true }]}><InputNumber min={0} style={{ width: "100%" }} /></Form.Item>
       </Form>
     </Create>
@@ -454,7 +461,12 @@ export const PrizesEdit = () => {
         <Form.Item label="Игра" name="gameId" rules={[{ required: true }]}>
           <Select {...gameSelectProps} style={{ width: "100%" }} />
         </Form.Item>
-        <Form.Item label="Изображение" name="imageUrl" rules={[{ required: true }]}><FileUploadField /></Form.Item>
+        <Form.Item label="Изображение (В магазине / Тайная коробка)" name="hiddenImageUrl" tooltip="То, что видит юзер до покупки.">
+          <FileUploadField />
+        </Form.Item>
+        <Form.Item label="Изображение (Реальный приз)" name="imageUrl" rules={[{ required: true }]} tooltip="Картинка, которая откроется после покупки.">
+          <FileUploadField />
+        </Form.Item>
         <Form.Item label={t("prizes.params.stockCount", "В наличии")} name="stockCount" rules={[{ required: true }]}><InputNumber min={0} style={{ width: "100%" }} /></Form.Item>
         <Form.Item label="Активен" name="isActive" valuePropName="checked"><Switch /></Form.Item>
       </Form>

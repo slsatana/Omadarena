@@ -295,7 +295,10 @@ export class AdminService {
 
   // DASHBOARD STATS
   async getStats() {
-    const [totalUsers, activeGames, totalPointsRaw, prizesRedeemed] = await Promise.all([
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const [totalUsers, activeGames, totalPointsRaw, prizesRedeemed, activeUsers7d] = await Promise.all([
       this.prisma.user.count({
         where: { phone: { notIn: ['+998901234567', '+998971234567', '+998931234567'] } }
       }),
@@ -306,13 +309,22 @@ export class AdminService {
       }),
       this.prisma.walletTransaction.count({
         where: { type: 'PRIZE_PURCHASE' }
+      }),
+      this.prisma.gameSession.groupBy({
+        by: ['userId'],
+        where: { startedAt: { gte: sevenDaysAgo } }
       })
     ]);
+
+    const retention = totalUsers > 0 ? Math.round((activeUsers7d.length / totalUsers) * 100) : 0;
+
     return {
       totalUsers,
       activeGames,
       totalPointsAwarded: totalPointsRaw?._sum?.amount ? totalPointsRaw._sum.amount.toString() : '0',
-      prizesRedeemed
+      prizesRedeemed,
+      retention,
+      topRegion: 'Global'
     };
   }
 }

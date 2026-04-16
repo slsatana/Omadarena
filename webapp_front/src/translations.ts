@@ -84,6 +84,16 @@ export const translations = {
       backEvents: "Back to Arenas",
       viewBoard: "Play Again"
     },
+    venueDashboard: {
+      title: "Venue Dashboard",
+      totalPlayers: "Total Players",
+      prizesIssued: "Prizes Issued",
+      gameStats: "Game Statistics",
+      avgScore: "Avg. Score",
+      dailyActive: "Daily Active",
+      pendingPrizes: "Pending Prizes",
+      scanPrize: "Scan Prize QR"
+    },
     profile: {
       title: "Profile",
       memberSince: "Member since March 2026",
@@ -357,6 +367,38 @@ export const translations = {
       backToMenu: "BACK TO MENU",
       outOfAttempts: "Out of Attempts",
       comeBackTomorrow: "You've used all your attempts for today. Come back tomorrow for more!"
+    },
+    errors: {
+      invalidPhone: "Invalid phone number format",
+      invalidCodeLength: "Code must be 6 digits",
+      otherDevice: "Logged in from another device. Your session has ended.",
+      adminPassError: "Invalid access password"
+    },
+    qrScanner: {
+      scannerTitle: "QR Code Scanner",
+      manualInput: "Enter code manually...",
+      simulateScan: "Simulate Scan",
+      validWait: "QR code is valid!",
+      validDesc: "The prize can be issued.",
+      prizeLabel: "Prize",
+      playerLabel: "Player",
+      statusLabel: "Status",
+      notIssued: "Not issued",
+      issuePrize: "Issue prize",
+      nextScan: "Scan next",
+      invalidQr: "Error",
+      invalidDesc: "QR code not found, expired, or belongs to another venue network.",
+      retry: "Try again"
+    },
+    accountChecks: {
+      deleteAccount: "Delete Account",
+      deleteWarning: "Are you sure you want to PERMANENTLY delete your account? All points and achievements will be erased, and you won't be able to register this number for 1 month!",
+      deleteSuccess: "Your account has been successfully deleted.",
+      deleteError: "Error deleting account",
+      adminPanelDesc: "Enter the universal administrator password.",
+      adminPanelEnter: "Go to Admin Panel",
+      cancel: "Cancel",
+      submit: "Submit"
     }
   },
   ru: {
@@ -441,6 +483,16 @@ export const translations = {
       noPrizes: "Отличная попытка! Продолжайте играть, чтобы подняться выше в таблице.",
       backEvents: "К аренам",
       viewBoard: "Играть снова"
+    },
+    venueDashboard: {
+      title: "Дашборд заведения",
+      totalPlayers: "Всего игроков",
+      prizesIssued: "Выдано призов",
+      gameStats: "Статистика игры",
+      avgScore: "Ср. счет",
+      dailyActive: "Активно за день",
+      pendingPrizes: "Ждут выдачи",
+      scanPrize: "Скан QR приза"
     },
     profile: {
       title: "Профиль",
@@ -715,6 +767,38 @@ export const translations = {
       backToMenu: "ВЕРНУТЬСЯ В МЕНЮ",
       outOfAttempts: "Попытки закончились",
       comeBackTomorrow: "Вы использовали все попытки на сегодня. Приходите завтра!"
+    },
+    errors: {
+      invalidPhone: "Неверный формат номера",
+      invalidCodeLength: "Код должен состоять из 6 цифр",
+      otherDevice: "Вход выполнен с другого устройства. Ваша сессия завершена.",
+      adminPassError: "Неверный пароль доступа"
+    },
+    qrScanner: {
+      scannerTitle: "Сканер QR-кодов",
+      manualInput: "Ввести код вручную...",
+      simulateScan: "Симулировать Скан",
+      validWait: "QR-код валиден!",
+      validDesc: "Приз можно выдавать.",
+      prizeLabel: "Приз",
+      playerLabel: "Игрок",
+      statusLabel: "Статус",
+      notIssued: "Не выдан",
+      issuePrize: "Выдать приз",
+      nextScan: "Сканировать следующий",
+      invalidQr: "Ошибка",
+      invalidDesc: "QR-код не найден, истек или принадлежит другой сети заведений.",
+      retry: "Попробовать снова"
+    },
+    accountChecks: {
+      deleteAccount: "Удалить аккаунт",
+      deleteWarning: "Вы уверены, что хотите НАВСЕГДА удалить свой аккаунт? Все ваши очки и достижения будут стерты, а вы не сможете зарегистрироваться на этот номер в течение 1 месяца!",
+      deleteSuccess: "Ваш аккаунт был успешно удален.",
+      deleteError: "Ошибка удаления аккаунта",
+      adminPanelDesc: "Введите универсальный пароль администратора.",
+      adminPanelEnter: "Переход в Админ-Панель",
+      cancel: "Отмена",
+      submit: "Войти"
     }
   },
   uz: {
@@ -799,6 +883,16 @@ export const translations = {
       noPrizes: "Yaxshi urinish! Jadvalda yuqoriga ko'tarilish uchun o'ynashda davom eting.",
       backEvents: "Arenalarga",
       viewBoard: "Yana o'ynash"
+    },
+    venueDashboard: {
+      title: "Muassasa paneli",
+      totalPlayers: "Jami o'yinchilar",
+      prizesIssued: "Berilgan sovrinlar",
+      gameStats: "O'yin statistikasi",
+      avgScore: "O'rtacha hisob",
+      dailyActive: "Kundalik faol",
+      pendingPrizes: "Kutilayotgan sovrinlar",
+      scanPrize: "Yutuq QR skaneri"
     },
     profile: {
       title: "Profil",

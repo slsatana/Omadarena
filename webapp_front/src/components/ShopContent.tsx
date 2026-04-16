@@ -6,16 +6,42 @@ import { BackButton } from './Shared';
 
 export const ShopContent = ({ onBack, embedded = false }: { onBack: () => void, embedded?: boolean }) => {
   const { user, setUser, prizes, selectedGameId, t } = useGame();
+  const [purchasedItems, setPurchasedItems] = React.useState<Record<string, { unlocked: boolean, realIcon: string, qrCode?: string }>>({});
+  const [loadingBuy, setLoadingBuy] = React.useState<string | null>(null);
 
   const shopItems = prizes
     .filter(p => p.gameId === selectedGameId && p.available)
-    .map(p => ({ ...p, icon: p.image, desc: p.description, cost: p.pointsCost }));
+    .map(p => {
+      const isPurchased = purchasedItems[p.id];
+      return { 
+        ...p, 
+        icon: isPurchased ? isPurchased.realIcon : (p.hiddenImageUrl || '🎁'), 
+        realIcon: p.image, 
+        desc: p.description, 
+        cost: p.pointsCost 
+      };
+    });
 
-  const handleBuy = (item: any) => {
+  const handleBuy = async (item: any) => {
     if (user.points >= item.cost) {
       if (confirm((t.shop?.purchaseConfirm || 'Purchase {name} for {cost} points?').replace('{name}', item.name).replace('{cost}', item.cost))) {
-        setUser({ ...user, points: user.points - item.cost });
-        alert((t.shop?.purchaseSuccess || 'Successfully purchased: {name}!').replace('{name}', item.name));
+        setLoadingBuy(item.id);
+        try {
+          // Send request to real backend endpoint
+          const res = await import('../api').then(m => m.api.post(`/prizes/${item.id}/buy`));
+          
+          setUser({ ...user, points: Number(res.data.newBalance || (user.points - item.cost)) });
+          setPurchasedItems(prev => ({ 
+            ...prev, 
+            [item.id]: { unlocked: true, realIcon: res.data.realImage || item.realIcon, qrCode: res.data.qrCode }
+          }));
+          alert((t.shop?.purchaseSuccess || 'Successfully purchased: {name}! 🎉\nYour unique code: {qr}').replace('{name}', item.name).replace('{qr}', res.data.qrCode));
+        } catch (error: any) {
+          const errMsg = error.response?.data?.message || t.errors?.network || 'An error occurred';
+          alert(`Error: ${errMsg}`);
+        } finally {
+          setLoadingBuy(null);
+        }
       }
     } else {
       alert((t.shop?.notEnoughPoints || 'Not enough points! You need {diff} more.').replace('{diff}', (item.cost - user.points).toString()));
@@ -42,52 +68,74 @@ export const ShopContent = ({ onBack, embedded = false }: { onBack: () => void, 
             <p className="font-bold text-[var(--text-muted)]">{t.shop?.noPrizes || 'No prizes found for this game yet.'}</p>
           </div>
         ) : (
-          shopItems.map((item, i) => (
+          shopItems.map((item, i) => {
+            const isPurchased = purchasedItems[item.id];
+            
+            return (
             <motion.div
               key={item.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.1 }}
-              className="bg-[var(--surface)] rounded-[32px] border border-[var(--border)] p-5 relative overflow-hidden group active:scale-[0.98] transition-transform"
+              className={`rounded-[32px] border p-5 relative overflow-hidden group transition-all duration-500 ${isPurchased ? 'bg-[var(--primary)]/10 border-[var(--primary)]/50' : 'bg-[var(--surface)] border-[var(--border)] active:scale-[0.98]'}`}
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--primary)] opacity-5 blur-3xl -mr-16 -mt-16" />
               
               <div className="flex gap-5 relative z-10">
-                <div className="w-20 h-20 bg-[var(--bg)] rounded-[24px] border border-[var(--border)] flex items-center justify-center text-4xl shadow-inner overflow-hidden">
-                  {item.icon?.startsWith('http') || item.icon?.startsWith('/') ? (
-                    <img src={item.icon} alt={item.name} className="w-full h-full object-cover" />
-                  ) : (
-                    item.icon
-                  )}
-                </div>
+                <motion.div 
+                  initial={false}
+                  animate={isPurchased ? { rotateY: 180, scale: 1.1 } : { rotateY: 0, scale: 1 }}
+                  transition={{ type: 'spring', damping: 15 }}
+                  className="w-20 h-20 shrink-0 bg-[var(--bg)] rounded-[24px] border border-[var(--border)] flex items-center justify-center text-4xl shadow-inner overflow-hidden"
+                >
+                  <motion.div
+                    animate={isPurchased ? { rotateY: 180 } : { rotateY: 0 }}
+                    className="w-full h-full flex items-center justify-center"
+                  >
+                    {item.icon?.startsWith('http') || item.icon?.startsWith('/') || item.icon?.startsWith('data:') ? (
+                      <img src={item.icon} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-5xl">{item.icon}</span>
+                    )}
+                  </motion.div>
+                </motion.div>
                 <div className="flex-1 flex flex-col justify-center">
                   <h3 className="text-lg font-extrabold tracking-tight mb-1">{item.name}</h3>
-                  <p className="text-[11px] text-[var(--text-muted)] font-medium leading-tight mb-3">{item.desc}</p>
+                  <p className="text-[11px] text-[var(--text-muted)] font-medium leading-tight mb-3">
+                    {isPurchased ? `Unveiled! QR Code: ${isPurchased.qrCode?.slice(0,8)}...` : item.desc}
+                  </p>
                   
                   <div className="flex items-center justify-between mt-auto">
                     <div className="flex items-center gap-1.5">
-                      <Zap size={14} className="text-[var(--primary)]" />
+                      <Zap size={14} className={isPurchased ? 'text-white' : 'text-[var(--primary)]'} />
                       <span className="text-sm font-black">{item.cost === 0 ? 'FREE' : item.cost}</span>
                       {item.cost > 0 && <span className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest ml-1">pts</span>}
                     </div>
                     <button 
-                      onClick={() => handleBuy(item)}
-                      disabled={user.points < item.cost}
-                      className={`px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest ${
-                        item.cost === 0 
+                      onClick={() => !isPurchased && handleBuy(item)}
+                      disabled={user.points < item.cost || isPurchased || loadingBuy === item.id}
+                      className={`px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-colors ${
+                        isPurchased ? 'bg-green-500 text-white'
+                        : loadingBuy === item.id ? 'bg-zinc-700 text-zinc-300'
+                        : item.cost === 0 
                           ? 'bg-[var(--surface)] text-[var(--text-muted)] border border-[var(--border)]' 
                           : user.points >= item.cost
                             ? 'bg-[var(--primary)] text-white shadow-[0_0_15px_rgba(10,132,255,0.3)]'
                             : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
                       }`}
                     >
-                      {item.cost === 0 ? (t.shop?.equipped || 'Equipped') : user.points >= item.cost ? (t.shop?.buy || 'Buy') : (t.shop?.locked || 'Locked')}
+                      {isPurchased ? 'Acquired' 
+                        : loadingBuy === item.id ? 'Wait...' 
+                        : item.cost === 0 ? (t.shop?.equipped || 'Equipped') 
+                        : user.points >= item.cost ? (t.shop?.buy || 'Buy') 
+                        : (t.shop?.locked || 'Locked')}
                     </button>
                   </div>
                 </div>
               </div>
             </motion.div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

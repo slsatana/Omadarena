@@ -114,10 +114,26 @@ export class VenueService {
       }
     });
 
+    const uniquePlayersResult = await this.prisma.gameSession.groupBy({
+      by: ['userId'],
+      where: {
+        game: { venueNetworkId: { in: myVenueNetworkIds } }
+      }
+    });
+    const playersCount = uniquePlayersResult.length;
+
+    const scoreStats = await this.prisma.gameResult.aggregate({
+      _avg: { rawScore: true },
+      where: {
+        session: { game: { venueNetworkId: { in: myVenueNetworkIds } } }
+      }
+    });
+    const avgScoreValue = scoreStats._avg.rawScore ? Math.round(scoreStats._avg.rawScore) : 0;
+
     return {
-      players: 1284, // Kept static for visual scale, as actual unique players query spans the entire sessions table
+      players: playersCount,
       prizes: redeemed + pending,
-      avgScore: 1450,
+      avgScore: avgScoreValue,
       active: activeSessions,
       pending: pending
     };

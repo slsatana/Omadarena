@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Используем текущий hostname устройства:3000
-const API_URL = `http://${window.location.hostname}:3000/api/v1`;
+// Берем URL из .env или используем текущий хост как fallback
+// @ts-ignore
+const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3000/api/v1`;
 
 export const api = axios.create({
   baseURL: API_URL,

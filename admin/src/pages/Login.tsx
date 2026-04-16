@@ -56,17 +56,17 @@ export const Login = () => {
               onClick={handlePhoneSubmit}
               style={{ background: "linear-gradient(90deg, #8b5cf6, #d946ef)", border: "none", fontWeight: 600 }}
             >
-              Получить код
+              {t("pages.login.buttons.getCode", "Получить код")}
             </Button>
             <div style={{ textAlign: "center", marginTop: 16 }}>
-              <Text style={{ color: "#a1a1aa" }}>Нет аккаунта? </Text>
-              <Link to="/register" style={{ color: "#d946ef", fontWeight: 600 }}>Зарегистрироваться</Link>
+              <Text style={{ color: "#a1a1aa" }}>{t("pages.login.noAccount", "Нет аккаунта? ")}</Text>
+              <Link to="/register" style={{ color: "#d946ef", fontWeight: 600 }}>{t("pages.login.buttons.register", "Зарегистрироваться")}</Link>
             </div>
           </Space>
         ) : (
           <Space direction="vertical" style={{ width: "100%" }} size="large">
             <div>
-              <Text style={{ color: "#e4e4e7", display: "block", marginBottom: 8 }}>Код из СМС</Text>
+              <Text style={{ color: "#e4e4e7", display: "block", marginBottom: 8 }}>{t("pages.login.smsCode", "Код из СМС")}</Text>
               <Input 
                 size="large" 
                 value={code} 
@@ -82,7 +82,7 @@ export const Login = () => {
               onClick={handleVerifySubmit}
               style={{ background: "linear-gradient(90deg, #8b5cf6, #d946ef)", border: "none", fontWeight: 600 }}
             >
-              Войти
+              {t("pages.login.buttons.signIn", "Войти")}
             </Button>
           </Space>
         )}

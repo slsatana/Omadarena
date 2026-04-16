@@ -16,7 +16,6 @@ import {
   GamesList, GamesEdit,
   VenueNetworksList, VenueNetworksCreate, VenueNetworksEdit,
   PrizesList, PrizesCreate, PrizesEdit,
-  PromoCodesList, PromoCodesCreate, PromoCodesEdit,
   TransactionsList
 } from "./pages/resources";
 
@@ -27,7 +26,9 @@ const DashboardOverview = () => {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    fetch(`http://${window.location.hostname}:3000/api/v1/admin/stats`, {
+    // @ts-ignore
+    const API_BASE = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3000/api/v1`;
+    fetch(`${API_BASE}/admin/stats`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }
     })
       .then(res => res.json())
@@ -66,8 +67,19 @@ const premiumDarkTheme = {
   algorithm: theme.darkAlgorithm,
 };
 
-const API_URL = `http://${window.location.hostname}:3000/api/v1/admin`;
+// @ts-ignore
+const BASE_API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3000/api/v1`;
+const API_URL = `${BASE_API_URL}/admin`;
 const myDataProvider = dataProvider(API_URL, axiosInstance as any); // using custom axios instance with Bearer token!
+
+const urlParams = new URLSearchParams(window.location.search);
+const tokenFromUrl = urlParams.get('token');
+if (tokenFromUrl) {
+  localStorage.setItem('admin_token', tokenFromUrl);
+  if (window.history.replaceState) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
 
 const App: React.FC = () => {
   return (
@@ -86,7 +98,7 @@ const App: React.FC = () => {
             { name: "games", list: "/games", edit: "/games/edit/:id", meta: { label: "Игры" } },
             { name: "venue_networks", list: "/venue_networks", create: "/venue_networks/create", edit: "/venue_networks/edit/:id", meta: { label: "Заведения" } },
             { name: "prizes", list: "/prizes", create: "/prizes/create", edit: "/prizes/edit/:id", meta: { label: "Призы" } },
-            { name: "promo_codes", list: "/promo_codes", create: "/promo_codes/create", edit: "/promo_codes/edit/:id", meta: { label: "Промокоды" } },
+            // { name: "promo_codes", list: "/promo_codes", create: "/promo_codes/create", edit: "/promo_codes/edit/:id", meta: { label: "Промокоды" } },
             { name: "wallet_transactions", list: "/wallet_transactions", meta: { label: "Транзакции" } },
           ]}
         >
@@ -118,11 +130,11 @@ const App: React.FC = () => {
                 <Route path="edit/:id" element={<PrizesEdit />} />
               </Route>
               
-              <Route path="promo_codes">
+              {/* <Route path="promo_codes">
                 <Route index element={<PromoCodesList />} />
                 <Route path="create" element={<PromoCodesCreate />} />
                 <Route path="edit/:id" element={<PromoCodesEdit />} />
-              </Route>
+              </Route> */}
               
               <Route path="wallet_transactions"><Route index element={<TransactionsList />} /></Route>
               <Route path="*" element={<ErrorComponent />} />

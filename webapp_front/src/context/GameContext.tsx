@@ -11,7 +11,7 @@ export type Screen =
 export type UserRole = 'USER' | 'VENUE' | 'ADMIN';
 
 export interface Prize {
-  id: string; gameId: string; name: string; description: string; pointsCost: number; image: string; available: boolean;
+  id: string; gameId: string; name: string; description: string; pointsCost: number; image: string; hiddenImageUrl?: string; available: boolean;
 }
 
 export interface User {
@@ -132,7 +132,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     const handleUnauthorized = () => {
       logout();
       setScreen('WELCOME');
-      setTimeout(() => alert('Вход выполнен с другого устройства. Ваша сессия завершена.'), 100);
+      setTimeout(() => alert(t.errors?.otherDevice || 'Вход выполнен с другого устройства. Ваша сессия завершена.'), 100);
     };
     window.addEventListener('arena_unauthorized', handleUnauthorized as any);
     return () => window.removeEventListener('arena_unauthorized', handleUnauthorized as any);

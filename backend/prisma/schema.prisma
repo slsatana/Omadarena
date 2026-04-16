@@ -229,13 +229,14 @@ model GameResult {
 }
 
 model Prize {
-  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name       String
-  cost       Int
-  gameId     String
-  imageUrl   String
-  stockCount Int     @default(0)
-  isActive   Boolean @default(true)
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  cost           Int
+  gameId         String
+  imageUrl       String
+  hiddenImageUrl String?
+  stockCount     Int     @default(0)
+  isActive       Boolean @default(true)
 
   game   Game         @relation(fields: [gameId], references: [id], onDelete: Restrict)
   orders Order[]
