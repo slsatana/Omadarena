@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Res, UseGuards, Req } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -36,9 +36,9 @@ export class AdminController {
   @Get('users/:id')
   async getUser(@Param('id') id: string) { return this.adminService.getUser(id); }
   @Patch('users/:id')
-  async updateUser(@Param('id') id: string, @Body() body: any) { return this.adminService.updateUser(id, body); }
+  async updateUser(@Param('id') id: string, @Body() body: any, @Req() req: any) { return this.adminService.updateUser(id, body, req.user); }
   @Delete('users/:id')
-  async deleteUser(@Param('id') id: string) { return this.adminService.deleteUser(id); }
+  async deleteUser(@Param('id') id: string, @Req() req: any) { return this.adminService.deleteUser(id, req.user); }
 
   // ==================== GAMES ====================
   @Get('games')
@@ -48,7 +48,7 @@ export class AdminController {
   @Get('games/:id')
   async getGame(@Param('id') id: string) { return this.adminService.getGame(id); }
   @Patch('games/:id')
-  async updateGame(@Param('id') id: string, @Body() body: any) { return this.adminService.updateGame(id, body); }
+  async updateGame(@Param('id') id: string, @Body() body: any, @Req() req: any) { return this.adminService.updateGame(id, body, req.user); }
 
   // ==================== VENUE NETWORKS ====================
   @Get('venue_networks')
@@ -58,11 +58,11 @@ export class AdminController {
   @Get('venue_networks/:id')
   async getVenueNetwork(@Param('id') id: string) { return this.adminService.getVenueNetwork(id); }
   @Post('venue_networks')
-  async createVenueNetwork(@Body() body: any) { return this.adminService.createVenueNetwork(body); }
+  async createVenueNetwork(@Body() body: any, @Req() req: any) { return this.adminService.createVenueNetwork(body, req.user); }
   @Patch('venue_networks/:id')
-  async updateVenueNetwork(@Param('id') id: string, @Body() body: any) { return this.adminService.updateVenueNetwork(id, body); }
+  async updateVenueNetwork(@Param('id') id: string, @Body() body: any, @Req() req: any) { return this.adminService.updateVenueNetwork(id, body, req.user); }
   @Delete('venue_networks/:id')
-  async deleteVenueNetwork(@Param('id') id: string) { return this.adminService.deleteVenueNetwork(id); }
+  async deleteVenueNetwork(@Param('id') id: string, @Req() req: any) { return this.adminService.deleteVenueNetwork(id, req.user); }
 
   // ==================== PRIZES ====================
   @Get('prizes')
@@ -72,20 +72,19 @@ export class AdminController {
   @Get('prizes/:id')
   async getPrize(@Param('id') id: string) { return this.adminService.getPrize(id); }
   @Post('prizes')
-  async createPrize(@Body() body: any) { 
-    // Data cleansing
+  async createPrize(@Body() body: any, @Req() req: any) { 
     if(body.cost) body.cost = parseInt(body.cost, 10);
     if(body.stockCount) body.stockCount = parseInt(body.stockCount, 10);
-    return this.adminService.createPrize(body); 
+    return this.adminService.createPrize(body, req.user); 
   }
   @Patch('prizes/:id')
-  async updatePrize(@Param('id') id: string, @Body() body: any) { 
+  async updatePrize(@Param('id') id: string, @Body() body: any, @Req() req: any) { 
     if(body.cost) body.cost = parseInt(body.cost, 10);
     if(body.stockCount) body.stockCount = parseInt(body.stockCount, 10);
-    return this.adminService.updatePrize(id, body); 
+    return this.adminService.updatePrize(id, body, req.user); 
   }
   @Delete('prizes/:id')
-  async deletePrize(@Param('id') id: string) { return this.adminService.deletePrize(id); }
+  async deletePrize(@Param('id') id: string, @Req() req: any) { return this.adminService.deletePrize(id, req.user); }
 
   // ==================== PROMO CODES ====================
   @Get('promo_codes')
@@ -95,19 +94,25 @@ export class AdminController {
   @Get('promo_codes/:id')
   async getPromoCode(@Param('id') id: string) { return this.adminService.getPromoCode(id); }
   @Post('promo_codes')
-  async createPromoCode(@Body() body: any) { 
+  async createPromoCode(@Body() body: any, @Req() req: any) { 
     if(body.pointsReward) body.pointsReward = parseInt(body.pointsReward, 10);
     if(body.maxUsesGlobally) body.maxUsesGlobally = parseInt(body.maxUsesGlobally, 10);
-    return this.adminService.createPromoCode(body); 
+    return this.adminService.createPromoCode(body, req.user); 
   }
   @Patch('promo_codes/:id')
-  async updatePromoCode(@Param('id') id: string, @Body() body: any) { 
+  async updatePromoCode(@Param('id') id: string, @Body() body: any, @Req() req: any) { 
     if(body.pointsReward) body.pointsReward = parseInt(body.pointsReward, 10);
     if(body.maxUsesGlobally) body.maxUsesGlobally = parseInt(body.maxUsesGlobally, 10);
-    return this.adminService.updatePromoCode(id, body); 
+    return this.adminService.updatePromoCode(id, body, req.user); 
   }
   @Delete('promo_codes/:id')
-  async deletePromoCode(@Param('id') id: string) { return this.adminService.deletePromoCode(id); }
+  async deletePromoCode(@Param('id') id: string, @Req() req: any) { return this.adminService.deletePromoCode(id, req.user); }
+
+  // ==================== AUDIT LOGS ====================
+  @Get('audit_logs')
+  async getAuditLogs(@Query() query: any, @Res() res: Response) {
+    return this.sendListResponse(res, await this.adminService.getAuditLogs(query));
+  }
 
   // ==================== TRANSACTIONS ====================
   @Get('wallet_transactions')

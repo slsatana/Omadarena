@@ -1,5 +1,5 @@
 import { List, Create, Edit, useTable, useForm, DateField, useSelect, EditButton, DeleteButton } from "@refinedev/antd";
-import { Table, Input, Switch, InputNumber, Form, DatePicker, Typography, Space, Button, Select, Tabs, Upload, message, Card, Row, Col, Statistic, Divider } from "antd";
+import { Table, Input, Switch, InputNumber, Form, DatePicker, Typography, Space, Button, Select, Tabs, Upload, message, Card, Row, Col, Statistic, Divider, Tag, Avatar } from "antd";
 import { useTranslate, useList, useUpdate } from "@refinedev/core";
 import dayjs from "dayjs";
 import { useState } from "react";
@@ -42,9 +42,13 @@ export const UsersList = () => {
       <Table {...tableProps} rowKey="id">
         <Table.Column dataIndex="id" title="ID" render={(val: string) => val.slice(0,8)} />
         <Table.Column dataIndex="phone" title={t("users.params.phone", "Телефон")} />
-        <Table.Column dataIndex="displayName" title={t("users.params.displayName", "Имя")} />
-        <Table.Column dataIndex="status" title={t("users.params.status", "Статус")} />
-        <Table.Column dataIndex="role" title="Роль" render={(val) => val === 'ADMIN' || val === 'SUPER_ADMIN' ? 'Админ' : val === 'VENUE' ? 'Заведение' : 'Пользователь'} />
+        <Table.Column dataIndex="displayName" title={t("users.params.displayName", "Имя")} render={(val) => <Space><Avatar style={{ backgroundColor: '#8b5cf6' }}>{val?.charAt(0)?.toUpperCase() || 'U'}</Avatar><span>{val || 'Без имени'}</span></Space>} />
+        <Table.Column dataIndex="status" title={t("users.params.status", "Статус")} render={(val) => <Tag color={val === 'ACTIVE' ? 'success' : 'error'}>{val === 'ACTIVE' ? 'АКТИВЕН' : 'ЗАБЛОКИРОВАН'}</Tag>} />
+        <Table.Column dataIndex="role" title="Роль" render={(val) => <Tag color={val === 'ADMIN' || val === 'SUPER_ADMIN' ? 'purple' : val === 'VENUE' ? 'cyan' : 'blue'}>{val === 'ADMIN' || val === 'SUPER_ADMIN' ? 'Админ' : val === 'VENUE' ? 'Заведение' : 'Пользователь'}</Tag>} />
+        <Table.Column dataIndex="balance" title="Очки (Баланс)" render={(val) => <span style={{ color: '#8b5cf6', fontWeight: 'bold' }}>{val || 0}</span>} />
+        <Table.Column dataIndex="gamesPlayedList" title="Игры" />
+        <Table.Column dataIndex="prizesBought" title="Призы" />
+        <Table.Column dataIndex="avgTimeOnline" title="Ср. Время" />
         <Table.Column dataIndex="createdAt" title={t("users.params.createdAt", "Дата регистрации")} render={(val) => <DateField value={val} format="DD/MM/YYYY HH:mm" />} />
         <Table.Column title="Действия" render={(_, record: any) => (
           <Space>
@@ -397,7 +401,8 @@ export const PrizesList = () => {
     <List title={t("prizes.prizes", "Призы")} createButtonProps={{ onClick: () => window.location.href = createUrl }}>
       <Tabs activeKey={activeTab} onChange={handleTabChange} items={items} />
       <Table {...tableProps} rowKey="id">
-        <Table.Column dataIndex="name" title={t("prizes.params.name", "Название")} />
+        <Table.Column dataIndex="imageUrl" title="Картинка" render={(val) => val ? <Avatar shape="square" size="large" src={val} /> : <Avatar shape="square" size="large">П</Avatar>} />
+        <Table.Column dataIndex="name" title={t("prizes.params.name", "Название")} render={(val, record: any) => <Space direction="vertical" size={2}><span>{val}</span>{!record.isActive && <Tag color="error">УДАЛЁН</Tag>}</Space>}/>
         {activeTab === "ALL" && (
           <Table.Column 
             dataIndex="gameId" 
@@ -591,11 +596,80 @@ export const TransactionsList = () => {
       <List title={t("wallet_transactions.wallet_transactions", "Лог Транзакций")}>
         <Table {...tableProps} rowKey="id">
           <Table.Column dataIndex="userPhone" title={t("wallet_transactions.params.userPhone", "Телефон")} />
-          <Table.Column dataIndex="type" title={t("wallet_transactions.params.type", "Тип")} />
-          <Table.Column dataIndex="amount" title={t("wallet_transactions.params.amount", "Сумма")} render={(val) => <span style={{ color: Number(val) > 0 ? '#34d399' : '#f87171' }}>{val}</span>} />
+          <Table.Column dataIndex="type" title={t("wallet_transactions.params.type", "Тип")} render={(val) => <Tag color={val === 'GAME_EARN' ? 'success' : 'purple'}>{val === 'GAME_EARN' ? 'ИГРА (Доход)' : 'МАГАЗИН (Расход)'}</Tag>} />
+          <Table.Column dataIndex="amount" title={t("wallet_transactions.params.amount", "Сумма")} render={(val) => <span style={{ color: Number(val) > 0 ? '#34d399' : '#f87171', fontWeight: 'bold' }}>{Number(val) > 0 ? `+${val}` : val}</span>} />
           <Table.Column dataIndex="balanceAfter" title={t("wallet_transactions.params.balanceAfter", "Баланс")} />
           <Table.Column dataIndex="details" title={t("wallet_transactions.params.details", "Детали")} render={(val) => <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>{val}</span>} />
           <Table.Column dataIndex="createdAt" title={t("wallet_transactions.params.createdAt", "Дата")} render={(val) => <DateField value={val} format="DD/MM/YYYY HH:mm:ss" />} />
+        </Table>
+      </List>
+    </div>
+  );
+};
+
+export const AuditLogsList = () => {
+  const { tableProps, searchFormProps } = useTable({
+    syncWithLocation: true,
+    pagination: { pageSize: 20 },
+    onSearch: (values: any) => {
+      const filters: any[] = [];
+      if (values.userPhone) filters.push({ field: "userPhone", operator: "contains", value: values.userPhone });
+      if (values.action) filters.push({ field: "action", operator: "eq", value: values.action });
+      if (values.resourceType) filters.push({ field: "resourceType", operator: "eq", value: values.resourceType });
+      return filters;
+    },
+  });
+
+  return (
+    <div style={{ animation: "fadeIn 0.6s ease" }}>
+      <Card style={{ marginBottom: 16 }}>
+        <Form {...searchFormProps} layout="inline">
+          <Form.Item name="userPhone" label="Менеджер (Телефон)">
+            <Input placeholder="Чей лог" />
+          </Form.Item>
+          <Form.Item name="action" label="Тип действия">
+            <Select
+              style={{ width: 140 }}
+              allowClear
+              placeholder="Все"
+              options={[
+                { label: "СОЗДАНИЕ", value: "CREATE" },
+                { label: "РЕДАКТИРОВАНИЕ", value: "UPDATE" },
+                { label: "УДАЛЕНИЕ", value: "DELETE" },
+                { label: "МЯГКОЕ УДАЛЕНИЕ", value: "SOFT_DELETE" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="resourceType" label="Ресурс">
+            <Select
+              style={{ width: 180 }}
+              allowClear
+              placeholder="Все объекты"
+              options={[
+                { label: "Пользователь", value: "USER" },
+                { label: "Заведение", value: "VENUENETWORK" },
+                { label: "Игра", value: "GAME" },
+                { label: "Приз", value: "PRIZE" },
+                { label: "Промокод", value: "PROMOCODE" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit">
+              Фильтр
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+
+      <List title="Журнал действий">
+        <Table {...tableProps} rowKey="id">
+        <Table.Column dataIndex="userName" title="Кто изменил" render={(val, record: any) => <Space><Avatar style={{ backgroundColor: '#f59e0b' }}>{val?.charAt(0)?.toUpperCase() || 'S'}</Avatar> <span style={{ fontWeight: 'bold' }}>{val || 'Система'} ({record.userPhone})</span></Space>}/>
+        <Table.Column dataIndex="action" title="Действие" render={(val) => <Tag color={val === 'CREATE' ? 'success' : val === 'UPDATE' ? 'blue' : 'error'}>{val}</Tag>} />
+        <Table.Column dataIndex="resourceType" title="Объект" />
+          <Table.Column dataIndex="resourceId" title="ID Объекта" render={(val) => <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{val}</span>} />
+          <Table.Column dataIndex="afterJson" title="Изменения" render={(val) => <pre style={{ fontSize: '0.65rem', maxWidth: '300px', overflowX: 'auto', margin: 0 }}>{val ? JSON.stringify(val, null, 2) : '-'}</pre>} />
+          <Table.Column dataIndex="createdAt" title="Дата" render={(val) => <DateField value={val} format="DD/MM/YYYY HH:mm:ss" />} />
         </Table>
       </List>
     </div>

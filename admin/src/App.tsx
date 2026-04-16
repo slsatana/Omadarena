@@ -17,10 +17,11 @@ import {
   GamesList, GamesEdit,
   VenueNetworksList, VenueNetworksCreate, VenueNetworksEdit,
   PrizesList, PrizesCreate, PrizesEdit,
-  TransactionsList
+  TransactionsList, AuditLogsList
 } from "./pages/resources";
 
 import { Typography, Card, Row, Col, Statistic } from "antd";
+import { UserOutlined, TeamOutlined, PlayCircleOutlined, TrophyOutlined, AppstoreOutlined, WalletOutlined, ShoppingCartOutlined } from "@ant-design/icons";
 
 const DashboardOverview = () => {
   const [stats, setStats] = React.useState<any>({ totalUsers: 0, activeGames: 0, totalPointsAwarded: "0", prizesRedeemed: 0, totalSessions: 0, totalUnspentBalance: "0", activeUsers7dCount: 0 });
@@ -43,28 +44,28 @@ const DashboardOverview = () => {
       
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} sm={12} lg={8}>
-          <Card><Statistic title={i18n.t("dashboard.users", "Всего пользователей")} value={loading ? "..." : stats.totalUsers} /></Card>
+          <Card><Statistic title={<><UserOutlined /> {i18n.t("dashboard.users", "Всего пользователей")}</>} value={loading ? "..." : stats.totalUsers} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={8}>
-          <Card><Statistic title={i18n.t("dashboard.activeUsers", "Активных игроков (за 7 дней)")} value={loading ? "..." : stats.activeUsers7dCount} /></Card>
+          <Card><Statistic title={<><TeamOutlined /> {i18n.t("dashboard.activeUsers", "Активных игроков (за 7 дней)")}</>} value={loading ? "..." : stats.activeUsers7dCount} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={8}>
-          <Card><Statistic title={i18n.t("dashboard.sessions", "Всего сыграно игр")} value={loading ? "..." : stats.totalSessions} /></Card>
+          <Card><Statistic title={<><PlayCircleOutlined /> {i18n.t("dashboard.sessions", "Всего сыграно игр")}</>} value={loading ? "..." : stats.totalSessions} /></Card>
         </Col>
       </Row>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title={i18n.t("dashboard.games", "Активные игры (в админке)")} value={loading ? "..." : stats.activeGames} /></Card>
+          <Card><Statistic title={<><AppstoreOutlined /> {i18n.t("dashboard.games", "Активные игры")}</>} value={loading ? "..." : stats.activeGames} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title={i18n.t("dashboard.points", "Раздано очков (всего)")} value={loading ? "..." : stats.totalPointsAwarded} /></Card>
+          <Card><Statistic title={<><TrophyOutlined /> {i18n.t("dashboard.points", "Раздано очков")}</>} value={loading ? "..." : stats.totalPointsAwarded} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title={i18n.t("dashboard.unspent", "Непотраченный баланс игроков")} value={loading ? "..." : stats.totalUnspentBalance} valueStyle={{ color: '#34d399' }} /></Card>
+          <Card><Statistic title={<><WalletOutlined /> {i18n.t("dashboard.unspent", "Непотрачено")}</>} value={loading ? "..." : stats.totalUnspentBalance} valueStyle={{ color: '#34d399' }} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title={i18n.t("dashboard.prizes", "Куплено призов")} value={loading ? "..." : stats.prizesRedeemed} valueStyle={{ color: '#8b5cf6' }} /></Card>
+          <Card><Statistic title={<><ShoppingCartOutlined /> {i18n.t("dashboard.prizes", "Куплено" )}</>} value={loading ? "..." : stats.prizesRedeemed} valueStyle={{ color: '#8b5cf6' }} /></Card>
         </Col>
       </Row>
 
@@ -156,6 +157,7 @@ const App: React.FC = () => {
             { name: "prizes", list: "/prizes", create: "/prizes/create", edit: "/prizes/edit/:id", meta: { label: "Призы" } },
             // { name: "promo_codes", list: "/promo_codes", create: "/promo_codes/create", edit: "/promo_codes/edit/:id", meta: { label: "Промокоды" } },
             { name: "wallet_transactions", list: "/wallet_transactions", meta: { label: "Транзакции" } },
+            { name: "audit_logs", list: "/audit_logs", meta: { label: "Журнал действий" } },
           ]}
         >
           <Routes>
@@ -193,6 +195,7 @@ const App: React.FC = () => {
               </Route> */}
               
               <Route path="wallet_transactions"><Route index element={<TransactionsList />} /></Route>
+              <Route path="audit_logs"><Route index element={<AuditLogsList />} /></Route>
               <Route path="*" element={<ErrorComponent />} />
             </Route>
           </Routes>

@@ -36,6 +36,25 @@ export class AdminService {
     return obj;
   }
 
+  private async logAudit(user: any, action: string, resourceType: string, resourceId: string, beforeJson?: any, afterJson?: any) {
+    if (!user || user.id === 'SERVER_ADMIN') return;
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          actorUserId: user.id || null,
+          actorRole: user.role || 'ADMIN',
+          action,
+          resourceType,
+          resourceId,
+          beforeJson: beforeJson || undefined,
+          afterJson: afterJson || undefined
+        }
+      });
+    } catch(e) {
+      console.error('[AuditLog] Failed', e);
+    }
+  }
+
   private async genericGetList(model: string, params: any, defaultSort = 'createdAt', include?: any, extraWhere?: any) {
     const { skip, take, orderBy } = this.buildPaginationAndSort(params, defaultSort);
     
@@ -64,21 +83,29 @@ export class AdminService {
     return this.convertBigIntToString(data);
   }
 
-  private async genericCreate(model: string, body: any) {
+  private async genericCreate(model: string, body: any, user?: any) {
     // @ts-ignore
     const data = await this.prisma[model].create({ data: body });
+    if (user) await this.logAudit(user, 'CREATE', model.toUpperCase(), data.id, null, data);
     return this.convertBigIntToString(data);
   }
 
-  private async genericUpdate(model: string, id: string, body: any) {
+  private async genericUpdate(model: string, id: string, body: any, user?: any) {
+    // @ts-ignore
+    const before = await this.prisma[model].findUnique({ where: { id } });
     // @ts-ignore
     const data = await this.prisma[model].update({ where: { id }, data: body });
+    if (user) await this.logAudit(user, 'UPDATE', model.toUpperCase(), id, before, data);
     return this.convertBigIntToString(data);
   }
 
-  private async genericDelete(model: string, id: string) {
+  private async genericDelete(model: string, id: string, user?: any) {
+    // @ts-ignore
+    const before = await this.prisma[model].findUnique({ where: { id } });
+    if (!before) return null;
     // @ts-ignore
     const data = await this.prisma[model].delete({ where: { id } });
+    if (user) await this.logAudit(user, 'DELETE', model.toUpperCase(), id, before, null);
     return this.convertBigIntToString(data);
   }
 
@@ -88,10 +115,32 @@ export class AdminService {
 
   // USERS
   async getUsers(params: any) { 
-    const result = await this.genericGetList('user', params, 'createdAt', { roleAssignments: true });
+    const result = await this.genericGetList('user', params, 'createdAt', { 
+      roleAssignments: true,
+      wallet: { select: { balance: true } },
+      gameSessions: { include: { game: { select: { name: true } }, result: { select: { timePlayedSeconds: true } } } },
+      _count: { select: { orders: true } }
+    });
     result.data = result.data.map((u: any) => {
       const u2 = { ...u };
       u2.role = u2.roleAssignments?.[0]?.role || 'USER';
+      
+      u2.balance = u2.wallet?.balance || 0;
+      u2.prizesBought = u2._count?.orders || 0;
+      
+      const gamesPlayed = [...new Set(u2.gameSessions?.map((s: any) => s.game?.name).filter(Boolean))];
+      u2.gamesPlayedList = gamesPlayed.length > 0 ? gamesPlayed.join(', ') : '-';
+      
+      const validSessions = u2.gameSessions?.filter((s: any) => s.result?.timePlayedSeconds) || [];
+      const totalTime = validSessions.reduce((acc: number, s: any) => acc + (s.result?.timePlayedSeconds || 0), 0);
+      u2.avgTimeOnline = validSessions.length > 0 
+        ? `${Math.round((totalTime / validSessions.length) / 60)} мин` 
+        : '-';
+
+      delete u2.gameSessions;
+      delete u2.wallet;
+      delete u2._count;
+      delete u2.roleAssignments;
       return u2;
     });
     return result;
@@ -102,7 +151,7 @@ export class AdminService {
     data.venueNetworkId = data.roleAssignments?.[0]?.venueNetworkId || null;
     return data;
   }
-  async updateUser(id: string, body: any) { 
+  async updateUser(id: string, body: any, user?: any) { 
     const role = body.role;
     const venueNetworkId = body.venueNetworkId;
     delete body.role;
@@ -113,14 +162,14 @@ export class AdminService {
       await this.prisma.roleAssignment.deleteMany({ where: { userId: id } });
       if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
         await this.prisma.roleAssignment.create({ data: { userId: id, role } });
-      } else if (role === 'VENUE') {
-        await this.prisma.roleAssignment.create({ data: { userId: id, role: 'VENUE', venueNetworkId: venueNetworkId || null } });
+      } else if (role === 'VENUE' && venueNetworkId) {
+        await this.prisma.roleAssignment.create({ data: { userId: id, role, venueNetworkId } });
       }
     }
     
-    return this.genericUpdate('user', id, body); 
+    return this.genericUpdate('user', id, body, user); 
   }
-  async deleteUser(id: string) { return this.genericDelete('user', id); }
+  async deleteUser(id: string, user?: any) { return this.genericDelete('user', id, user); }
 
   // GAMES
   async getGames(params: any) { 
@@ -149,7 +198,7 @@ export class AdminService {
       statsUniquePlayers: uniqueUsers.length,
     };
   }
-  async updateGame(id: string, body: any) { return this.genericUpdate('game', id, body); }
+  async updateGame(id: string, body: any, user?: any) { return this.genericUpdate('game', id, body, user); }
 
   // VENUE NETWORKS
   async getVenueNetworks(params: any) { 
@@ -168,18 +217,18 @@ export class AdminService {
     return venue;
   }
   
-  async createVenueNetwork(body: any) { 
+  async createVenueNetwork(body: any, user?: any) { 
     let gameIds: string[] | null = null;
     if (body.games !== undefined) {
        gameIds = Array.isArray(body.games) ? body.games : [];
        delete body.games;
     }
-    require("fs").appendFileSync("/tmp/backend-body.log", "\nBODY RECV: " + JSON.stringify(body)); let gameConfigs: any = null;
+    let gameConfigs: any = null;
     if (body.gameConfigs !== undefined) {
        gameConfigs = body.gameConfigs;
        delete body.gameConfigs;
     }
-    const created = await this.genericCreate('venueNetwork', body);
+    const created = await this.genericCreate('venueNetwork', body, user);
     if (gameIds && gameIds.length > 0) {
        await this.prisma.game.updateMany({
          where: { id: { in: gameIds } },
@@ -200,13 +249,13 @@ export class AdminService {
     return created;
   }
   
-  async updateVenueNetwork(id: string, body: any) { 
+  async updateVenueNetwork(id: string, body: any, user?: any) { 
     let gameIds: string[] | null = null;
     if (body.games !== undefined) {
        gameIds = Array.isArray(body.games) ? body.games : [];
        delete body.games;
     }
-    require("fs").appendFileSync("/tmp/backend-body.log", "\nBODY RECV: " + JSON.stringify(body)); let gameConfigs: any = null;
+    let gameConfigs: any = null;
     if (body.gameConfigs !== undefined) {
        gameConfigs = body.gameConfigs;
        delete body.gameConfigs;
@@ -218,7 +267,7 @@ export class AdminService {
       oldGameIds = oldGames.map(g => g.id);
     }
 
-    const updated = await this.genericUpdate('venueNetwork', id, body);
+    const updated = await this.genericUpdate('venueNetwork', id, body, user);
 
     if (gameIds !== null) {
        const toAdd = gameIds.filter(gid => !oldGameIds.includes(gid));
@@ -254,35 +303,60 @@ export class AdminService {
     return updated;
   }
   
-  async deleteVenueNetwork(id: string) { 
+  async deleteVenueNetwork(id: string, user?: any) { 
+    const games = await this.prisma.game.findMany({ where: { venueNetworkId: id } });
+    for (const game of games) {
+      await this.prisma.prize.updateMany({
+        where: { gameId: game.id },
+        data: { isActive: false }
+      });
+    }
     await this.prisma.game.updateMany({
       where: { venueNetworkId: id },
       data: { venueNetworkId: null, displayName: null, imageUrl: null }
     });
-    return this.genericDelete('venueNetwork', id); 
+    return this.genericDelete('venueNetwork', id, user); 
   }
 
   // PRIZES
-  async getPrizes(params: any) { return this.genericGetList('prize', params, 'name', { game: true }); }
+  async getPrizes(params: any) { 
+    return this.genericGetList('prize', params, 'createdAt', { game: { select: { id: true, name: true, displayName: true } } }); 
+  }
   async getPrize(id: string) { return this.genericGetOne('prize', id); }
-  async createPrize(body: any) { return this.genericCreate('prize', body); }
-  async updatePrize(id: string, body: any) { return this.genericUpdate('prize', id, body); }
-  async deletePrize(id: string) { return this.genericDelete('prize', id); }
+  async createPrize(body: any, user?: any) { return this.genericCreate('prize', body, user); }
+  async updatePrize(id: string, body: any, user?: any) { return this.genericUpdate('prize', id, body, user); }
+  async deletePrize(id: string, user?: any) {
+    try {
+      return await this.genericDelete('prize', id, user);
+    } catch {
+      // If foreign key constraint fails (orders/claims exist), we soft delete safely.
+      const prize = await this.prisma.prize.findUnique({ where: { id } });
+      if (prize) {
+         if (user) await this.logAudit(user, 'SOFT_DELETE', 'PRIZE', id, prize, { isActive: false });
+         const data = await this.prisma.prize.update({ 
+           where: { id }, 
+           data: { isActive: false, name: `[DELETED] ${prize.name}` } 
+         });
+         return this.convertBigIntToString(data);
+      }
+      return null;
+    }
+  }
 
   // PROMO CODES
   async getPromoCodes(params: any) { return this.genericGetList('promoCode', params, 'code'); }
   async getPromoCode(id: string) { return this.genericGetOne('promoCode', id); }
-  async createPromoCode(body: any) { 
-    body.startDate = new Date(body.startDate);
-    body.endDate = new Date(body.endDate);
-    return this.genericCreate('promoCode', body); 
-  }
-  async updatePromoCode(id: string, body: any) { 
+  async createPromoCode(body: any, user?: any) { 
     if (body.startDate) body.startDate = new Date(body.startDate);
     if (body.endDate) body.endDate = new Date(body.endDate);
-    return this.genericUpdate('promoCode', id, body); 
+    return this.genericCreate('promoCode', body, user); 
   }
-  async deletePromoCode(id: string) { return this.genericDelete('promoCode', id); }
+  async updatePromoCode(id: string, body: any, user?: any) { 
+    if (body.startDate) body.startDate = new Date(body.startDate);
+    if (body.endDate) body.endDate = new Date(body.endDate);
+    return this.genericUpdate('promoCode', id, body, user); 
+  }
+  async deletePromoCode(id: string, user?: any) { return this.genericDelete('promoCode', id, user); }
 
   // WALLET TRANSACTIONS (Read Only)
   async getTransactions(params: any) { 
@@ -433,5 +507,19 @@ export class AdminService {
       activeUsers7dCount: activeUsers7d.length,
       chartData
     };
+  }
+
+  // AUDIT LOGS
+  async getAuditLogs(params: any) { 
+    const result = await this.genericGetList('auditLog', params, 'createdAt', { user: true });
+    
+    // Map User to make it easier for refinement UI
+    result.data = result.data.map((log: any) => ({
+      ...log,
+      userPhone: log.user?.phone || 'SERVER',
+      userName: log.user?.displayName || 'SYSTEM',
+    }));
+    
+    return result;
   }
 }
