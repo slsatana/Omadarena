@@ -377,7 +377,7 @@ export const translations = {
     qrScanner: {
       scannerTitle: "QR Code Scanner",
       manualInput: "Enter code manually...",
-      simulateScan: "Simulate Scan",
+      simulateScan: "Check Code",
       validWait: "QR code is valid!",
       validDesc: "The prize can be issued.",
       prizeLabel: "Prize",
@@ -777,7 +777,7 @@ export const translations = {
     qrScanner: {
       scannerTitle: "Сканер QR-кодов",
       manualInput: "Ввести код вручную...",
-      simulateScan: "Симулировать Скан",
+      simulateScan: "Проверить код",
       validWait: "QR-код валиден!",
       validDesc: "Приз можно выдавать.",
       prizeLabel: "Приз",

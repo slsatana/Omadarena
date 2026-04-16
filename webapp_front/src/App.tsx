@@ -18,6 +18,7 @@ import {
   SettingsScreen,
   SupportScreen
 } from './components/Screens';
+import { MyPrizesScreen } from './components/MyPrizesScreen';
 
 function AppContent() {
   const { screen } = useGame();
@@ -39,6 +40,7 @@ function AppContent() {
           {screen === 'SUPPORT' && <SupportScreen key="support" />}
           {screen === 'LEADERBOARD' && <LeaderboardScreen key="leaderboard" />}
           {screen === 'SHOP' && <ShopScreen key="shop" />}
+          {screen === 'MY_PRIZES' && <MyPrizesScreen key="my_prizes" />}
           {screen === 'PRIZE_SCANNER' && <PrizeScannerScreen key="prize-qr" />}
           {screen === 'VENUE_DASHBOARD' && <VenueDashboard key="venue" />}
           {screen === 'ADMIN_DASHBOARD' && <AdminDashboard key="admin" />}

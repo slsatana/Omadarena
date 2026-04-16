@@ -758,13 +758,12 @@ export const ResultScreen = () => {
 
 export const PrizeScannerScreen = () => {
   const { setScreen, t } = useGame();
-  const [isScanning, setIsScanning] = useState(true);
   const [result, setResult] = useState<'idle' | 'success' | 'error'>('idle');
   const [qrData, setQrData] = useState('');
   const [claimInfo, setClaimInfo] = useState<any>(null);
 
   const handleScan = async (data: string) => {
-    setIsScanning(false);
+    if (!data.trim()) return;
     try {
       const res = await api.post('/venue/scan', { qrCodeData: data });
       if (res.data && res.data.status === 'VALID') {
@@ -791,29 +790,44 @@ export const PrizeScannerScreen = () => {
     }
   };
 
+  const resetForm = () => {
+    setResult('idle');
+    setQrData('');
+    setClaimInfo(null);
+  };
+
   return (
     <ScreenWrapper>
       <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-12">
           <BackButton onClick={() => setScreen('VENUE_DASHBOARD')} />
-          <h2 className="text-xl font-bold">{t.qrScanner?.scannerTitle || 'Сканер QR-кодов'}</h2>
+          <h2 className="text-xl font-bold">{t.qrScanner?.scannerTitle || 'Выдача Призов'}</h2>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center">
-          {isScanning ? (
-            <div className="relative w-full px-6">
-              <div className="w-full aspect-square border-4 border-[var(--primary)] rounded-3xl relative overflow-hidden flex flex-col items-center justify-center bg-zinc-900">
-                <Scan size={48} className="mb-4 text-[var(--primary)]" />
-                <p className="font-bold text-[var(--primary)] opacity-70">Camera Feed Placeholder</p>
-              </div>
-              <div className="mt-8 relative z-50">
+          {result === 'idle' ? (
+            <div className="w-full max-w-sm">
+              <div className="bg-[var(--surface)] p-8 rounded-[32px] border border-[var(--border)] shadow-2xl flex flex-col items-center text-center">
+                <div className="w-20 h-20 bg-[var(--primary)]/10 rounded-full flex items-center justify-center text-[var(--primary)] mb-6">
+                  <Gift size={40} />
+                </div>
+                <h3 className="text-2xl font-black mb-2">Введите код приза</h3>
+                <p className="text-[var(--text-muted)] text-sm mb-8">
+                  Попросите гостя продиктовать уникальный 8-значный код из раздела "Мои Призы"
+                </p>
                 <input 
                   type="text" 
-                  value={qrData} onChange={e => setQrData(e.target.value)}
-                  className="bg-black text-white px-4 py-4 rounded-xl w-full text-center font-bold text-xl border border-zinc-700"
-                  placeholder={t.qrScanner?.manualInput || "Ввести код вручную..."}
+                  value={qrData} onChange={e => setQrData(e.target.value.toUpperCase())}
+                  className="bg-[var(--bg)] text-white px-6 py-5 rounded-2xl w-full text-center font-mono tracking-[0.3em] font-black text-2xl border border-[var(--border)] focus:border-[var(--primary)] focus:outline-none focus:ring-1 focus:ring-[var(--primary)] transition-all uppercase mb-6 shadow-inner"
+                  placeholder="EX: A1B2C3D4"
                 />
-                <Button onClick={() => handleScan(qrData)} className="mt-4 w-full bg-[var(--primary)] text-zinc-950 py-4 text-lg font-bold">{t.qrScanner?.simulateScan || 'Симулировать Скан'}</Button>
+                <Button 
+                  onClick={() => handleScan(qrData)} 
+                  disabled={qrData.length < 5}
+                  className="w-full bg-[var(--primary)] text-zinc-950 py-4 text-lg font-bold rounded-2xl disabled:opacity-50"
+                >
+                  {t.qrScanner?.simulateScan || 'Проверить код'}
+                </Button>
               </div>
             </div>
           ) : result === 'success' ? (
@@ -839,19 +853,19 @@ export const PrizeScannerScreen = () => {
                 <Button onClick={handleRedeem} className="w-full py-4 text-lg font-bold bg-[var(--primary)] text-zinc-950">
                   {t.qrScanner?.issuePrize || 'Выдать приз'}
                 </Button>
-                <Button onClick={() => { setIsScanning(true); setResult('idle'); setQrData(''); }} className="w-full py-4 text-lg font-bold bg-[var(--surface)] text-white">
-                  {t.qrScanner?.nextScan || 'Сканировать следующий'}
+                <Button onClick={() => { resetForm(); }} className="w-full py-4 text-lg font-bold bg-[var(--surface)] text-white">
+                  Ввести следующий код
                 </Button>
               </div>
             </motion.div>
           ) : (
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center w-full">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center w-full max-w-sm bg-[var(--surface)] p-8 border border-[var(--border)] rounded-[32px] shadow-2xl mx-auto">
               <div className="w-24 h-24 bg-[var(--danger)]/20 rounded-full flex items-center justify-center mx-auto mb-6 text-[var(--danger)]">
                 <XCircle size={48} />
               </div>
               <h3 className="text-3xl font-black mb-2 text-[var(--danger)]">{t.qrScanner?.invalidQr || 'Ошибка'}</h3>
-              <p className="text-[var(--text-muted)] mb-8">{t.qrScanner?.invalidDesc || 'QR-код не найден, истек или принадлежит другой сети заведений.'}</p>
-              <Button onClick={() => { setIsScanning(true); setResult('idle'); setQrData(''); }} className="w-full py-4 text-lg font-bold bg-[var(--primary)] text-zinc-950">
+              <p className="text-[var(--text-muted)] mb-8">{t.qrScanner?.invalidDesc || 'Код не найден, истек или принадлежит другой сети заведений.'}</p>
+              <Button onClick={() => { resetForm(); }} className="w-full py-4 text-lg font-bold bg-[var(--danger)] text-white rounded-2xl">
                 {t.qrScanner?.retry || 'Попробовать снова'}
               </Button>
             </motion.div>
@@ -1386,14 +1400,15 @@ export const ProfileScreen = () => {
               
               <div className="space-y-3">
                 <button 
-                  onClick={() => setScreen('SHOP')}
-                  className="w-full p-5 bg-[var(--surface)] rounded-[24px] border border-[var(--border)] flex justify-between items-center shadow-sm active:scale-[0.98] transition-transform"
+                  onClick={() => setScreen('MY_PRIZES')}
+                  className="w-full p-5 bg-[var(--surface)] rounded-[24px] border border-[var(--primary)]/30 flex justify-between items-center shadow-sm active:scale-[0.98] transition-transform relative overflow-hidden"
                 >
-                  <div className="flex items-center gap-3">
-                    <ShoppingBag size={20} className="text-[var(--secondary)]" />
-                    <span className="text-lg font-bold">{t.profile.prizesShop}</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary)]/10 to-transparent" />
+                  <div className="flex items-center gap-3 relative z-10">
+                    <Gift size={20} className="text-[var(--primary)]" />
+                    <span className="text-lg font-bold">Мои Призы</span>
                   </div>
-                  <ChevronRight size={22} className="text-[var(--text-muted)]" />
+                  <ChevronRight size={22} className="text-[var(--primary)] relative z-10" />
                 </button>
                 <button 
                   onClick={() => setScreen('LEADERBOARD')}

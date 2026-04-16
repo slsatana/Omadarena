@@ -17,8 +17,13 @@ export class VenueService {
     }
     const myVenueNetworkIds = venueUserAssignments.filter(a => a.venueNetworkId).map(a => a.venueNetworkId);
 
-    const claim = await this.prisma.prizeClaim.findUnique({
-      where: { qrCodeData },
+    const claim = await this.prisma.prizeClaim.findFirst({
+      where: { 
+        qrCodeData: {
+          startsWith: qrCodeData,
+          mode: 'insensitive'
+        }
+      },
       include: {
         prize: { include: { game: true } },
         user: true,

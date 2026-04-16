@@ -286,9 +286,87 @@ export class AdminService {
 
   // WALLET TRANSACTIONS (Read Only)
   async getTransactions(params: any) { 
-    const res = await this.genericGetList('walletTransaction', params, 'createdAt', { user: true }); 
-    // Flatten user relation for frontend
-    res.data = res.data.map((tx: any) => ({ ...tx, userPhone: tx.user?.phone }));
+    const extraWhere: any = {};
+    if (params.userPhone) {
+      extraWhere.user = { phone: { contains: params.userPhone, mode: 'insensitive' } };
+      delete params.userPhone;
+    }
+    
+    if (params.prizeId) {
+      const orders = await this.prisma.order.findMany({ where: { prizeId: params.prizeId }, select: { id: true } });
+      const orderIds = orders.map(o => o.id);
+      extraWhere.referenceType = 'ORDER';
+      extraWhere.referenceId = { in: orderIds };
+      delete params.prizeId;
+    } else if (params.gameId) {
+      const sessions = await this.prisma.gameSession.findMany({ where: { gameId: params.gameId }, select: { id: true } });
+      const sessionIds = sessions.map(s => s.id);
+      
+      const orders = await this.prisma.order.findMany({ where: { prize: { gameId: params.gameId } }, select: { id: true } });
+      const orderIds = orders.map(o => o.id);
+
+      extraWhere.OR = [
+        { referenceType: 'GAME_SESSION', referenceId: { in: sessionIds } },
+        { referenceType: 'ORDER', referenceId: { in: orderIds } }
+      ];
+      delete params.gameId;
+    }
+
+    const res = await this.genericGetList('walletTransaction', params, 'createdAt', { user: true }, extraWhere); 
+    
+    // Flatten user relation for frontend and find extra details
+    const orderIds = res.data.filter((tx: any) => tx.referenceType === 'ORDER').map((tx: any) => tx.referenceId);
+    const sessionIds = res.data.filter((tx: any) => tx.referenceType === 'GAME_SESSION').map((tx: any) => tx.referenceId);
+    
+    let claimsMap: Record<string, any> = {};
+    let sessionsMap: Record<string, any> = {};
+
+    if (orderIds.length > 0) {
+      const claims = await this.prisma.prizeClaim.findMany({
+        where: { orderId: { in: orderIds } },
+        include: { prize: { include: { game: { include: { venueNetwork: true } } } } }
+      });
+      claimsMap = claims.reduce((acc, claim) => {
+        acc[claim.orderId] = claim;
+        return acc;
+      }, {} as Record<string, any>);
+    }
+
+    if (sessionIds.length > 0) {
+      const sessions = await this.prisma.gameSession.findMany({
+        where: { id: { in: sessionIds } },
+        include: { game: { include: { venueNetwork: true } } }
+      });
+      sessionsMap = sessions.reduce((acc, session) => {
+        acc[session.id] = session;
+        return acc;
+      }, {} as Record<string, any>);
+    }
+
+    res.data = res.data.map((tx: any) => {
+      let details = '';
+      if (tx.referenceType === 'ORDER' && claimsMap[tx.referenceId]) {
+         const claim = claimsMap[tx.referenceId];
+         const shortCode = claim.qrCodeData ? claim.qrCodeData.split('-')[0].toUpperCase() : 'N/A';
+         const statusStr = claim.status === 'PURCHASED' ? 'Ожидает выдачи' : (claim.status === 'REDEEMED' ? 'Выдан' : 'Истек');
+         const gameName = claim.prize?.game?.name || '?';
+         const venueName = claim.prize?.game?.venueNetwork?.name || 'All';
+         details = `Приз: ${claim.prize?.name || '?'} | Заведение: ${venueName} | Игра: ${gameName} | Код: ${shortCode} | ${statusStr}`;
+      } else if (tx.type === 'GAME_EARN' && tx.referenceType === 'GAME_SESSION' && sessionsMap[tx.referenceId]) {
+         const sess = sessionsMap[tx.referenceId];
+         const gameName = sess.game?.name || '?';
+         const venueName = sess.game?.venueNetwork?.name || 'All';
+         details = `Зачисление за игру | Заведение: ${venueName} | Игра: ${gameName}`;
+      } else if (tx.type === 'GAME_EARN') {
+         details = 'Зачисление за игру';
+      }
+      
+      return { 
+        ...tx, 
+        userPhone: tx.user?.phone,
+        details 
+      };
+    });
     return res;
   }
   async getTransaction(id: string) { return this.genericGetOne('walletTransaction', id); }
@@ -298,7 +376,7 @@ export class AdminService {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const [totalUsers, activeGames, totalPointsRaw, prizesRedeemed, activeUsers7d] = await Promise.all([
+    const [totalUsers, activeGames, totalPointsRaw, prizesRedeemed, activeUsers7d, totalSessions, totalBalanceRaw] = await Promise.all([
       this.prisma.user.count({
         where: { phone: { notIn: ['+998901234567', '+998971234567', '+998931234567'] } }
       }),
@@ -313,10 +391,35 @@ export class AdminService {
       this.prisma.gameSession.groupBy({
         by: ['userId'],
         where: { startedAt: { gte: sevenDaysAgo } }
+      }),
+      this.prisma.gameSession.count(),
+      this.prisma.wallet.aggregate({
+        _sum: { balance: true }
       })
     ]);
 
     const retention = totalUsers > 0 ? Math.round((activeUsers7d.length / totalUsers) * 100) : 0;
+
+    const chartData = [];
+    for (let i = 6; i >= 0; i--) {
+       const d = new Date();
+       d.setDate(d.getDate() - i);
+       d.setHours(0,0,0,0);
+       const start = d;
+       const end = new Date(start.getTime() + 86400000);
+       
+       const [sessCount, prizesCount, dailyUsers] = await Promise.all([
+          this.prisma.gameSession.count({ where: { startedAt: { gte: start, lt: end } } }),
+          this.prisma.order.count({ where: { createdAt: { gte: start, lt: end } } }),
+          this.prisma.gameSession.groupBy({
+             by: ['userId'],
+             where: { startedAt: { gte: start, lt: end } }
+          }).then(res => res.length)
+       ]);
+
+       const ds = start.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+       chartData.push({ name: ds, Игры: sessCount, Призы: prizesCount, Пользователи: dailyUsers });
+    }
 
     return {
       totalUsers,
@@ -324,7 +427,11 @@ export class AdminService {
       totalPointsAwarded: totalPointsRaw?._sum?.amount ? totalPointsRaw._sum.amount.toString() : '0',
       prizesRedeemed,
       retention,
-      topRegion: 'Global'
+      topRegion: 'Global',
+      totalSessions,
+      totalUnspentBalance: totalBalanceRaw?._sum?.balance ? totalBalanceRaw._sum.balance.toString() : '0',
+      activeUsers7dCount: activeUsers7d.length,
+      chartData
     };
   }
 }

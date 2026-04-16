@@ -113,9 +113,12 @@ export class WalletService {
       });
       if (existingTx) return existingTx;
 
+      const wallet = await tx.wallet.findUnique({ where: { userId: params.userId } });
+      if (!wallet) throw new BadRequestException('Wallet not found');
+
       /* Lock Row */
       const [walletRow] = await tx.$queryRaw<any[]>`
-        SELECT id, balance FROM wallets WHERE user_id = ${params.userId}::uuid FOR UPDATE;
+        SELECT id, balance FROM wallets WHERE id = ${wallet.id}::uuid FOR UPDATE;
       `;
 
       if (!walletRow) throw new BadRequestException('Wallet not found');

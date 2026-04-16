@@ -55,8 +55,11 @@ export class PrizesController {
       // So we will just deduct balance directly here to be fully atomic within this TX.
       const userId = req.user.userId;
       
+      const wallet = await tx.wallet.findUnique({ where: { userId } });
+      if (!wallet) throw new BadRequestException('Wallet not found');
+
       const [walletRow] = await tx.$queryRaw<any[]>`
-        SELECT id, balance FROM wallets WHERE user_id = ${userId}::uuid FOR UPDATE;
+        SELECT id, balance FROM wallets WHERE id = ${wallet.id}::uuid FOR UPDATE;
       `;
       if (!walletRow) throw new BadRequestException('Wallet not found');
 
@@ -132,5 +135,33 @@ export class PrizesController {
         newBalance: newBalance.toString()
       };
     });
+  }
+  @UseGuards(JwtOptionalAuthGuard)
+  @Get('my')
+  async getMyPrizes(@Req() req: any) {
+    if (!req.user) {
+      throw new BadRequestException('Unauthorized');
+    }
+    
+    const claims = await this.prisma.prizeClaim.findMany({
+      where: { userId: req.user.userId },
+      include: {
+        prize: true
+      },
+      orderBy: { expiresAt: 'desc' }
+    });
+
+    return claims.map(c => ({
+      id: c.id,
+      gameId: c.prize.gameId,
+      name: c.prize.name,
+      description: `Purchased successfully`,
+      pointsCost: c.prize.cost,
+      image: c.prize.imageUrl,
+      hiddenImageUrl: c.prize.hiddenImageUrl,
+      qrCodeData: c.qrCodeData,
+      status: c.status,
+      expiresAt: c.expiresAt
+    }));
   }
 }

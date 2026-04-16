@@ -6,8 +6,11 @@ const resources = {
     translation: {
       "dashboard.title": "Главная панель",
       "dashboard.users": "Всего пользователей",
+      "dashboard.activeUsers": "Активных за 7 дней",
+      "dashboard.sessions": "Всего сыграно игр",
       "dashboard.games": "Активные Игры",
       "dashboard.points": "Раздано Очков",
+      "dashboard.unspent": "Никем не потрачено (Баланс)",
       "dashboard.prizes": "Призов Выдано",
 
       "users.users": "Пользователи",
@@ -43,6 +46,7 @@ const resources = {
       "wallet_transactions.params.type": "Тип",
       "wallet_transactions.params.amount": "Сумма",
       "wallet_transactions.params.balanceAfter": "Баланс",
+      "wallet_transactions.params.details": "Детали",
       "wallet_transactions.params.createdAt": "Дата",
 
       "buttons.edit": "Изменить",

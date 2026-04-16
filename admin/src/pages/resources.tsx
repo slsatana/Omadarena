@@ -530,16 +530,62 @@ export const PromoCodesEdit = () => {
 
 export const TransactionsList = () => {
   const t = useTranslate();
-  const { tableProps } = useTable();
+  const { tableProps, searchFormProps } = useTable({
+    onSearch: (values: any) => {
+      const filters: any[] = [];
+      if (values.userPhone) filters.push({ field: "userPhone", operator: "eq", value: values.userPhone });
+      if (values.type) filters.push({ field: "type", operator: "eq", value: values.type });
+      if (values.gameId) filters.push({ field: "gameId", operator: "eq", value: values.gameId });
+      if (values.prizeId) filters.push({ field: "prizeId", operator: "eq", value: values.prizeId });
+      return filters;
+    },
+  });
+
+  const { selectProps: gameSelectProps } = useSelect({ resource: "games", optionLabel: "name", optionValue: "id" });
+  const { selectProps: prizeSelectProps } = useSelect({ resource: "prizes", optionLabel: "name", optionValue: "id" });
+
   return (
-    <List title={t("wallet_transactions.wallet_transactions", "Лог Транзакций")}>
-      <Table {...tableProps} rowKey="id">
-        <Table.Column dataIndex="userPhone" title={t("wallet_transactions.params.userPhone", "Телефон")} />
-        <Table.Column dataIndex="type" title={t("wallet_transactions.params.type", "Тип")} />
-        <Table.Column dataIndex="amount" title={t("wallet_transactions.params.amount", "Сумма")} render={(val) => <span style={{ color: Number(val) > 0 ? '#34d399' : '#f87171' }}>{val}</span>} />
-        <Table.Column dataIndex="balanceAfter" title={t("wallet_transactions.params.balanceAfter", "После")} />
-        <Table.Column dataIndex="createdAt" title={t("wallet_transactions.params.createdAt", "Дата")} render={(val) => <DateField value={val} format="DD/MM/YYYY HH:mm:ss" />} />
-      </Table>
-    </List>
+    <div style={{ animation: "fadeIn 0.6s ease" }}>
+      <Card style={{ marginBottom: 16 }}>
+        <Form {...searchFormProps} layout="inline">
+          <Form.Item name="userPhone" label={t("wallet_transactions.params.userPhone", "Телефон")}>
+            <Input placeholder="Поиск по номеру" />
+          </Form.Item>
+          <Form.Item name="type" label={t("wallet_transactions.params.type", "Тип")}>
+            <Select
+              style={{ width: 180 }}
+              allowClear
+              placeholder="Все типы"
+              options={[
+                { label: "Покупка приза", value: "PRIZE_PURCHASE" },
+                { label: "Начисление за игру", value: "GAME_EARN" },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="gameId" label="Игра">
+            <Select style={{ width: 200 }} allowClear placeholder="В какой игре" {...gameSelectProps} />
+          </Form.Item>
+          <Form.Item name="prizeId" label="Приз">
+            <Select style={{ width: 200 }} allowClear placeholder="Какой приз куплен" {...prizeSelectProps} />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit">
+              Фильтр
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+
+      <List title={t("wallet_transactions.wallet_transactions", "Лог Транзакций")}>
+        <Table {...tableProps} rowKey="id">
+          <Table.Column dataIndex="userPhone" title={t("wallet_transactions.params.userPhone", "Телефон")} />
+          <Table.Column dataIndex="type" title={t("wallet_transactions.params.type", "Тип")} />
+          <Table.Column dataIndex="amount" title={t("wallet_transactions.params.amount", "Сумма")} render={(val) => <span style={{ color: Number(val) > 0 ? '#34d399' : '#f87171' }}>{val}</span>} />
+          <Table.Column dataIndex="balanceAfter" title={t("wallet_transactions.params.balanceAfter", "Баланс")} />
+          <Table.Column dataIndex="details" title={t("wallet_transactions.params.details", "Детали")} render={(val) => <span style={{ color: '#9ca3af', fontSize: '0.875rem' }}>{val}</span>} />
+          <Table.Column dataIndex="createdAt" title={t("wallet_transactions.params.createdAt", "Дата")} render={(val) => <DateField value={val} format="DD/MM/YYYY HH:mm:ss" />} />
+        </Table>
+      </List>
+    </div>
   );
 };

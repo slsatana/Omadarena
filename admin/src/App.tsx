@@ -1,4 +1,5 @@
 import React from "react";
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Refine } from "@refinedev/core";
 import { ErrorComponent, ThemedLayoutV2, useNotificationProvider, ThemedSiderV2 } from "@refinedev/antd";
 import { ConfigProvider, theme } from "antd";
@@ -22,7 +23,7 @@ import {
 import { Typography, Card, Row, Col, Statistic } from "antd";
 
 const DashboardOverview = () => {
-  const [stats, setStats] = React.useState<any>({ totalUsers: 0, activeGames: 0, totalPointsAwarded: "0", prizesRedeemed: 0 });
+  const [stats, setStats] = React.useState<any>({ totalUsers: 0, activeGames: 0, totalPointsAwarded: "0", prizesRedeemed: 0, totalSessions: 0, totalUnspentBalance: "0", activeUsers7dCount: 0 });
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
@@ -39,18 +40,73 @@ const DashboardOverview = () => {
   return (
     <div style={{ animation: "fadeIn 0.6s ease" }}>
       <Typography.Title level={2}>{i18n.t("dashboard.title", "Главная панель")}</Typography.Title>
+      
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={12} lg={8}>
+          <Card><Statistic title={i18n.t("dashboard.users", "Всего пользователей")} value={loading ? "..." : stats.totalUsers} /></Card>
+        </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Card><Statistic title={i18n.t("dashboard.activeUsers", "Активных игроков (за 7 дней)")} value={loading ? "..." : stats.activeUsers7dCount} /></Card>
+        </Col>
+        <Col xs={24} sm={12} lg={8}>
+          <Card><Statistic title={i18n.t("dashboard.sessions", "Всего сыграно игр")} value={loading ? "..." : stats.totalSessions} /></Card>
+        </Col>
+      </Row>
+
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title={i18n.t("dashboard.users")} value={loading ? "..." : stats.totalUsers} /></Card>
+          <Card><Statistic title={i18n.t("dashboard.games", "Активные игры (в админке)")} value={loading ? "..." : stats.activeGames} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title={i18n.t("dashboard.games")} value={loading ? "..." : stats.activeGames} /></Card>
+          <Card><Statistic title={i18n.t("dashboard.points", "Раздано очков (всего)")} value={loading ? "..." : stats.totalPointsAwarded} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title={i18n.t("dashboard.points")} value={loading ? "..." : stats.totalPointsAwarded} /></Card>
+          <Card><Statistic title={i18n.t("dashboard.unspent", "Непотраченный баланс игроков")} value={loading ? "..." : stats.totalUnspentBalance} valueStyle={{ color: '#34d399' }} /></Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card><Statistic title={i18n.t("dashboard.prizes")} value={loading ? "..." : stats.prizesRedeemed} /></Card>
+          <Card><Statistic title={i18n.t("dashboard.prizes", "Куплено призов")} value={loading ? "..." : stats.prizesRedeemed} valueStyle={{ color: '#8b5cf6' }} /></Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+        <Col xs={24} lg={12}>
+          <Card title="Игровая активность (7 дней)">
+            <div style={{ width: '100%', height: 300 }}>
+              {stats.chartData && stats.chartData.length > 0 ? (
+                <ResponsiveContainer>
+                  <AreaChart data={stats.chartData.slice().reverse()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                    <XAxis dataKey="name" stroke="#9ca3af" />
+                    <YAxis stroke="#9ca3af" />
+                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: 8, color: '#e4e4e7' }} />
+                    <Area type="monotone" dataKey="Игры" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ color: '#52525b', textAlign: 'center', paddingTop: 100 }}>{loading ? "Загрузка..." : "Нет данных"}</div>
+              )}
+            </div>
+          </Card>
+        </Col>
+        
+        <Col xs={24} lg={12}>
+          <Card title="Покупки призов (7 дней)">
+            <div style={{ width: '100%', height: 300 }}>
+              {stats.chartData && stats.chartData.length > 0 ? (
+                <ResponsiveContainer>
+                  <BarChart data={stats.chartData.slice().reverse()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                    <XAxis dataKey="name" stroke="#9ca3af" />
+                    <YAxis stroke="#9ca3af" />
+                    <Tooltip contentStyle={{ backgroundColor: '#18181b', border: 'none', borderRadius: 8, color: '#e4e4e7' }} cursor={{ fill: '#27272a' }} />
+                    <Bar dataKey="Призы" fill="#34d399" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ color: '#52525b', textAlign: 'center', paddingTop: 100 }}>{loading ? "Загрузка..." : "Нет данных"}</div>
+              )}
+            </div>
+          </Card>
         </Col>
       </Row>
     </div>
