@@ -1,5 +1,6 @@
 import { List, Create, Edit, useTable, useForm, DateField, useSelect, EditButton, DeleteButton } from "@refinedev/antd";
-import { Table, Input, Switch, InputNumber, Form, DatePicker, Typography, Space, Button, Select, Tabs, Upload, message, Card, Row, Col, Statistic, Divider, Tag, Avatar } from "antd";
+import { Table, Input, Switch, InputNumber, Form, DatePicker, Typography, Space, Button, Select, Tabs, Upload, message, Card, Row, Col, Statistic, Divider, Tag, Avatar, Modal } from "antd";
+import { EyeOutlined } from "@ant-design/icons";
 import { useTranslate, useList, useUpdate } from "@refinedev/core";
 import dayjs from "dayjs";
 import { useState } from "react";
@@ -34,8 +35,65 @@ const FileUploadField = ({ value, onChange }: any) => {
   );
 };
 
+const UserProfileModal = ({ user, onClose }: { user: any | null, onClose: () => void }) => {
+  if (!user) return null;
+  
+  const { data: txData, isLoading: txLoading } = useList({
+    resource: "wallet_transactions",
+    pagination: { pageSize: 50 },
+    filters: [{ field: "userId", operator: "eq", value: user.id }],
+    sorters: [{ field: "createdAt", order: "desc" }],
+    queryOptions: { enabled: !!user }
+  });
+
+  const { data: sessData, isLoading: sessLoading } = useList({
+    resource: "game_sessions",
+    pagination: { pageSize: 50 },
+    filters: [{ field: "userId", operator: "eq", value: user.id }],
+    sorters: [{ field: "startedAt", order: "desc" }],
+    queryOptions: { enabled: !!user }
+  });
+
+  return (
+    <Modal title={`Профиль: ${user.phone}`} open={!!user} onCancel={onClose} footer={null} width={900}>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={12}><Card size="small"><Statistic title="Имя" value={user.displayName || "Без имени"} /></Card></Col>
+        <Col span={12}><Card size="small"><Statistic title="Очки (Баланс)" value={user.balance || 0} valueStyle={{ color: '#8b5cf6' }} /></Card></Col>
+      </Row>
+      <Tabs defaultActiveKey="1" items={[
+        {
+          key: "1", label: "Транзакции и Покупки", 
+          children: (
+            <Table dataSource={txData?.data} loading={txLoading} rowKey="id" pagination={{ pageSize: 10 }} size="small">
+              <Table.Column dataIndex="type" title="Тип" render={(val) => <Tag color={val === 'GAME_EARN' ? 'success' : 'purple'}>{val}</Tag>} />
+              <Table.Column dataIndex="amount" title="Сумма" render={(val) => <span style={{ color: Number(val) > 0 ? '#34d399' : '#f87171' }}>{Number(val) > 0 ? `+${val}` : val}</span>} />
+              <Table.Column dataIndex="balanceAfter" title="Остаток" />
+              <Table.Column dataIndex="details" title="Детали" render={(val) => <span style={{ fontSize: '0.8rem' }}>{val}</span>} />
+              <Table.Column dataIndex="createdAt" title="Дата" render={(val) => <DateField value={val} format="DD/MM/YYYY HH:mm" />} />
+            </Table>
+          )
+        },
+        {
+          key: "2", label: "Сессии и Устройства", 
+          children: (
+            <Table dataSource={sessData?.data} loading={sessLoading} rowKey="id" pagination={{ pageSize: 10 }} size="small">
+              <Table.Column dataIndex="game" title="Игра" render={(val) => val?.name} />
+              <Table.Column dataIndex="result" title="Заработано" render={(val) => val?.awardedPoints || 0} />
+              <Table.Column dataIndex="result" title="Время (сек)" render={(val) => val?.timePlayedSeconds || 0} />
+              <Table.Column dataIndex="clientVersion" title="Браузер/ОС" render={(val) => <span style={{ fontSize: '0.75rem', color: '#a1a1aa' }}>{val || 'Неизвестно'}</span>} />
+              <Table.Column dataIndex="deviceId" title="Устройство ID" render={(val) => <span style={{ fontSize: '0.7rem' }}>{val?.slice(0, 8) || '-'}</span>} />
+              <Table.Column dataIndex="startedAt" title="Дата" render={(val) => <DateField value={val} format="DD/MM/YYYY HH:mm" />} />
+            </Table>
+          )
+        }
+      ]} />
+    </Modal>
+  );
+};
+
 export const UsersList = () => {
   const t = useTranslate();
+  const [viewUser, setViewUser] = useState<any>(null);
   const { tableProps } = useTable({ syncWithLocation: true });
   return (
     <List title={t("users.users", "Пользователи")}>
@@ -52,11 +110,13 @@ export const UsersList = () => {
         <Table.Column dataIndex="createdAt" title={t("users.params.createdAt", "Дата регистрации")} render={(val) => <DateField value={val} format="DD/MM/YYYY HH:mm" />} />
         <Table.Column title="Действия" render={(_, record: any) => (
           <Space>
+            <Button size="small" icon={<EyeOutlined />} onClick={() => setViewUser(record)} />
             <EditButton hideText size="small" recordItemId={record.id} />
             <DeleteButton hideText size="small" recordItemId={record.id} />
           </Space>
         )} />
       </Table>
+      <UserProfileModal user={viewUser} onClose={() => setViewUser(null)} />
     </List>
   );
 };
@@ -300,8 +360,8 @@ export const GamesList = () => {
           title={t("games.params.isActive", "Активно")} 
           render={(val, record: any) => (
             <Switch 
-              checked={val} 
-              onChange={(checked) => mutate({ resource: "games", id: record.id, values: { isActive: checked } })} 
+              checked={val === true || val === "true"} 
+              onChange={(checked) => mutate({ resource: "games", id: record.id, values: { isActive: !!checked }, mutationMode: "pessimistic" })} 
             />
           )} 
         />

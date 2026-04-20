@@ -5,7 +5,7 @@ import { useGame } from '../context/GameContext';
 import { api } from '../api';
 
 export const MyPrizesScreen = () => {
-  const { setScreen } = useGame();
+  const { setScreen, goBack } = useGame();
   const [claims, setClaims] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedClaim, setSelectedClaim] = useState<any | null>(null);
@@ -27,7 +27,7 @@ export const MyPrizesScreen = () => {
     <div className="flex flex-col h-full w-full p-6 safe-top safe-pb min-h-screen bg-[var(--bg)] text-[var(--text)] relative">
       <div className="flex items-center gap-4 mb-6">
         <button 
-          onClick={() => setScreen('PROFILE')}
+          onClick={goBack}
           className="w-10 h-10 bg-[var(--surface)] shrink-0 rounded-full flex items-center justify-center border border-[var(--border)] active:scale-95 transition-transform"
         >
           <ArrowLeft size={18} className="text-[var(--text)]" />

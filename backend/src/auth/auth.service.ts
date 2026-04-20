@@ -169,6 +169,8 @@ export class AuthService {
       id: user.id,
       phone: user.phone,
       displayName: user.displayName,
+      avatarUrl: (user as any).avatarUrl || null,
+      friendCode: (user as any).friendCode || null,
       role: role,
       points: user.wallet ? user.wallet.balance.toString() : '0'
     };
@@ -197,5 +199,31 @@ export class AuthService {
     await redisClient.del(`active_device:${userId}`);
     
     return { success: true, message: 'Account deleted successfully' };
+  }
+
+  async updateProfile(userId: string, data: { displayName?: string; avatarUrl?: string }) {
+    const updateData: any = {};
+    
+    if (data.displayName !== undefined) {
+      const trimmed = data.displayName.trim();
+      if (trimmed.length < 2) throw new Error('Name must be at least 2 characters');
+      if (trimmed.length > 30) throw new Error('Name must be at most 30 characters');
+      updateData.displayName = trimmed;
+    }
+    
+    if (data.avatarUrl !== undefined) {
+      // Accept emoji (1-4 chars) or URL
+      updateData.avatarUrl = data.avatarUrl.trim().slice(0, 500);
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    return {
+      displayName: updated.displayName,
+      avatarUrl: (updated as any).avatarUrl || null,
+    };
   }
 }

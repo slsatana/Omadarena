@@ -143,4 +143,124 @@ export class VenueService {
       pending: pending
     };
   }
+
+  async getDetailedStats(venueUserId: string) {
+    // Find all venue networks this user manages
+    const venueUserAssignments = await this.prisma.roleAssignment.findMany({
+      where: { userId: venueUserId, role: 'VENUE' },
+    });
+    const myVenueNetworkIds = venueUserAssignments
+      .filter(a => a.venueNetworkId !== null)
+      .map(a => a.venueNetworkId as string);
+
+    if (!myVenueNetworkIds.length) {
+      return { games: [], venueName: null };
+    }
+
+    // Get venue network info
+    const venueNetwork = await this.prisma.venueNetwork.findFirst({
+      where: { id: { in: myVenueNetworkIds } },
+    });
+
+    // Get all games linked to these networks
+    const games = await this.prisma.game.findMany({
+      where: { venueNetworkId: { in: myVenueNetworkIds } },
+    });
+
+    const gameStats = await Promise.all(
+      games.map(async (game) => {
+        // Unique players
+        const uniquePlayers = await this.prisma.gameSession.groupBy({
+          by: ['userId'],
+          where: { gameId: game.id },
+        });
+        const playersCount = uniquePlayers.length;
+
+        // Total / today sessions
+        const totalSessions = await this.prisma.gameSession.count({ where: { gameId: game.id } });
+        const todaySessions = await this.prisma.gameSession.count({
+          where: {
+            gameId: game.id,
+            startedAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+          },
+        });
+
+        // Score + time aggregations
+        const resultAgg = await this.prisma.gameResult.aggregate({
+          _avg: { rawScore: true, timePlayedSeconds: true },
+          _max: { rawScore: true },
+          _sum: { timePlayedSeconds: true, awardedPoints: true },
+          where: { session: { gameId: game.id } },
+        });
+
+        // Prizes pending/redeemed
+        const pendingPrizes = await this.prisma.prizeClaim.count({
+          where: { prize: { gameId: game.id }, status: 'PURCHASED' },
+        });
+        const redeemedPrizes = await this.prisma.prizeClaim.count({
+          where: { prize: { gameId: game.id }, status: 'REDEEMED' },
+        });
+
+        // Top players by best score in this game
+        const topPlayerSessions = await this.prisma.gameSession.findMany({
+          where: { gameId: game.id, result: { isNot: null } },
+          include: {
+            user: { select: { displayName: true, phone: true } },
+            result: { select: { rawScore: true, timePlayedSeconds: true, awardedPoints: true } },
+          },
+          orderBy: { result: { rawScore: 'desc' } },
+          take: 50,
+        });
+
+        // Aggregate per-user: take the best score per user
+        const playerMap: Record<string, { name: string; bestScore: number; totalTimeSec: number; totalPoints: number; sessions: number }> = {};
+        for (const session of topPlayerSessions) {
+          const uid = session.userId;
+          const phone = session.user.phone;
+          const name = session.user.displayName || ('***' + phone.slice(-4));
+          if (!playerMap[uid]) {
+            playerMap[uid] = { name, bestScore: 0, totalTimeSec: 0, totalPoints: 0, sessions: 0 };
+          }
+          playerMap[uid].bestScore = Math.max(playerMap[uid].bestScore, session.result?.rawScore ?? 0);
+          playerMap[uid].totalTimeSec += session.result?.timePlayedSeconds ?? 0;
+          playerMap[uid].totalPoints += session.result?.awardedPoints ?? 0;
+          playerMap[uid].sessions += 1;
+        }
+
+        const topPlayers = Object.values(playerMap)
+          .sort((a, b) => b.bestScore - a.bestScore)
+          .slice(0, 10)
+          .map(p => ({
+            name: p.name,
+            bestScore: p.bestScore,
+            totalTimeSec: p.totalTimeSec,
+            totalPoints: p.totalPoints,
+            sessions: p.sessions,
+          }));
+
+        return {
+          gameId: game.id,
+          gameName: game.displayName || game.name,
+          imageUrl: game.imageUrl || null,
+          isActive: game.isActive,
+          playersCount,
+          totalSessions,
+          todaySessions,
+          avgScore: resultAgg._avg.rawScore ? Math.round(resultAgg._avg.rawScore) : 0,
+          maxScore: resultAgg._max.rawScore ?? 0,
+          avgTimePlayedSec: resultAgg._avg.timePlayedSeconds ? Math.round(resultAgg._avg.timePlayedSeconds) : 0,
+          totalTimePlayedSec: Number(resultAgg._sum.timePlayedSeconds ?? 0),
+          totalPointsAwarded: Number(resultAgg._sum.awardedPoints ?? 0),
+          pendingPrizes,
+          redeemedPrizes,
+          topPlayers,
+        };
+      })
+    );
+
+    return {
+      venueName: venueNetwork?.name ?? null,
+      games: gameStats,
+    };
+  }
 }

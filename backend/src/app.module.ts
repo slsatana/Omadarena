@@ -10,9 +10,10 @@ import { VenueModule } from './venue/venue.module';
 import { AdminModule } from './admin/admin.module';
 import { PrizesModule } from './prizes/prizes.module';
 import { UploadModule } from './upload/upload.module';
+import { FriendsModule } from './friends/friends.module';
 
 @Module({
-  imports: [PrismaModule, RedisModule, AuthModule, WalletModule, GamesModule, VenueModule, AdminModule, PrizesModule, UploadModule],
+  imports: [PrismaModule, RedisModule, AuthModule, WalletModule, GamesModule, VenueModule, AdminModule, PrizesModule, UploadModule, FriendsModule],
   controllers: [AppController],
   providers: [AppService],
 })

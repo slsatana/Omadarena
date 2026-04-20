@@ -445,6 +445,11 @@ export class AdminService {
   }
   async getTransaction(id: string) { return this.genericGetOne('walletTransaction', id); }
 
+  // GAME SESSIONS
+  async getGameSessions(params: any) {
+    return this.genericGetList('gameSession', params, 'startedAt', { game: true, result: true });
+  }
+
   // DASHBOARD STATS
   async getStats() {
     const sevenDaysAgo = new Date();

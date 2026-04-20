@@ -36,7 +36,7 @@ export const ColorSort = () => {
   const MAX_LIMIT = gameStat?.dailyPointsLimit || 5000;
   const attemptsLeft = gameStat?.attemptsLeft ?? 0;
   
-  const [gameState, setGameState] = useState<'IDLE' | 'PLAYING' | 'PAUSED' | 'GAMEOVER' | 'MAX_REACHED' | 'NO_ATTEMPTS' | 'ALMOST_WON' | 'DAILY_BONUS' | 'SHOP'>('IDLE');
+  const [gameState, setGameState] = useState<'IDLE' | 'PLAYING' | 'PAUSED' | 'GAMEOVER' | 'MAX_REACHED' | 'NO_ATTEMPTS' | 'ALMOST_WON' | 'DAILY_BONUS' | 'SHOP' | 'MOVES_OUT'>('IDLE');
   const [level, setLevel] = useState(1);
   const [tubes, setTubes] = useState<Tube[]>([]);
   const [selectedTube, setSelectedTube] = useState<number | null>(null);
@@ -47,6 +47,17 @@ export const ColorSort = () => {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [invalidMove, setInvalidMove] = useState<number | null>(null);
   const [startTime, setStartTime] = useState<number>(0);
+  const [movesLeft, setMovesLeft] = useState(0);
+  const [movesMax, setMovesMax] = useState(0);
+
+  // Calculate moves limit for a given level
+  const calcMovesMax = (lvl: number) => {
+    const isBreather = lvl % 5 === 0;
+    const effectiveLvl = isBreather ? Math.max(1, lvl - 3) : lvl;
+    const numColors = Math.min(10, 3 + Math.floor(effectiveLvl / 1.5));
+    // Generous buffer: numColors * TUBE_CAPACITY * 1.8 + level bonus
+    return Math.floor(numColors * TUBE_CAPACITY * 1.8 + lvl * 3);
+  };
 
   // Level Generator
   const generateLevel = useCallback((lvl: number) => {
@@ -93,12 +104,15 @@ export const ColorSort = () => {
     }
     if (!useAttempt()) return;
     
+    const initMoves = calcMovesMax(1);
     setTubes(generateLevel(1));
     setLevel(1);
     setScore(0);
     setStreak(0);
     setHistory([]);
     setStartTime(Date.now());
+    setMovesLeft(initMoves);
+    setMovesMax(initMoves);
     setGameState('PLAYING');
   };
 
@@ -141,8 +155,17 @@ export const ColorSort = () => {
         setSelectedTube(null);
         haptics.success();
         audio.playTone(600, 'sine', 0.1);
+
+        // Decrement moves
+        const newMovesLeft = movesLeft - 1;
+        setMovesLeft(newMovesLeft);
         
-        checkWin(newTubes);
+        // Check win first
+        const won = checkWin(newTubes);
+        // If not won and no moves left, game over
+        if (!won && newMovesLeft <= 0) {
+          setTimeout(() => setGameState('MOVES_OUT'), 300);
+        }
       } else {
         // Invalid move
         setInvalidMove(index);
@@ -154,7 +177,7 @@ export const ColorSort = () => {
     }
   };
 
-  const checkWin = (currentTubes: Tube[]) => {
+  const checkWin = (currentTubes: Tube[]): boolean => {
     const isWin = currentTubes.every(tube => 
       tube.length === 0 || (tube.length === TUBE_CAPACITY && tube.every(b => b.color === tube[0].color))
     );
@@ -164,7 +187,7 @@ export const ColorSort = () => {
       haptics.heavy();
       
       const timeTaken = (Date.now() - startTime) / 1000;
-      const speedBonus = Math.max(0, Math.floor(10 - timeTaken/5)); // Up to 10 bonus points for speed
+      const speedBonus = Math.max(0, Math.floor(10 - timeTaken/5));
       
       const multiplier = 1 + (streak * 0.05);
       const basePoints = 10 + (level * 2);
@@ -178,13 +201,19 @@ export const ColorSort = () => {
         handleGameOver('MAX_SCORE', newScore);
       } else {
         setTimeout(() => {
-          setLevel(l => l + 1);
-          setTubes(generateLevel(level + 1));
+          const nextLevel = level + 1;
+          const nextMoves = calcMovesMax(nextLevel);
+          setLevel(nextLevel);
+          setTubes(generateLevel(nextLevel));
           setHistory([]);
           setStartTime(Date.now());
+          setMovesLeft(nextMoves);
+          setMovesMax(nextMoves);
         }, 1000);
       }
+      return true;
     }
+    return false;
   };
 
   const handleGameOver = (reason: 'MAX_SCORE' | 'QUIT', finalScore: number) => {
@@ -207,6 +236,7 @@ export const ColorSort = () => {
     setTubes(newTubes);
     setHistory(history.slice(0, -1));
     setBoosts(b => ({ ...b, undo: b.undo - 1 }));
+    setMovesLeft(m => m + 1); // Restore the undone move
     haptics.light();
   };
 
@@ -290,6 +320,15 @@ export const ColorSort = () => {
             <span className="text-[9px] text-zinc-500 font-bold">/ {MAX_LIMIT}</span>
           </div>
         </div>
+        {/* Moves counter */}
+        {gameState === 'PLAYING' && (
+          <div className="flex flex-col items-center">
+            <p className="text-[11px] font-black uppercase tracking-[0.15em] text-zinc-500">{t.colorSort?.movesLeft || 'MOVES'}</p>
+            <span className={`text-lg font-black tabular-nums ${
+              movesLeft <= 5 ? 'text-red-400' : movesLeft <= 10 ? 'text-yellow-400' : 'text-white'
+            }`}>{movesLeft}</span>
+          </div>
+        )}
         {gameState === 'PLAYING' ? (
           <button 
             onClick={() => setGameState('PAUSED')}
@@ -462,12 +501,7 @@ export const ColorSort = () => {
                   {t.colorSort?.play || "Play"}
                 </Button>
                 
-                <button 
-                  onClick={() => setGameState('DAILY_BONUS')}
-                  className="w-full py-3 text-xs font-bold uppercase tracking-widest text-pink-400 border border-pink-500/30 rounded-xl bg-pink-500/10 active:scale-95 transition-transform"
-                >
-                  {t.colorSort?.dailyBonus || "Daily Bonus"}
-                </button>
+
               </motion.div>
             </div>
           </motion.div>
@@ -485,49 +519,7 @@ export const ColorSort = () => {
           </motion.div>
         )}
 
-        {gameState === 'DAILY_BONUS' && (
-          <motion.div 
-            key="daily_bonus"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed inset-0 bg-zinc-950 z-[110] flex flex-col p-6 safe-top safe-pb"
-          >
-            <div className="flex justify-between items-center mb-8">
-              <BackButton onClick={() => setGameState('IDLE')} />
-              <h2 className="text-xl font-black uppercase italic tracking-widest text-pink-500">{t.colorSort?.dailyBonus || "Daily Bonus"}</h2>
-              <div className="w-10" />
-            </div>
 
-            <div className="flex-1 flex flex-col gap-6 overflow-y-auto no-scrollbar">
-              {/* Daily Login Streak */}
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 mb-4">7-Day Streak</h3>
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                  {[1, 2, 3, 4, 5, 6, 7].map(day => (
-                    <div key={day} className={`shrink-0 w-16 h-20 rounded-2xl flex flex-col items-center justify-center gap-2 border ${day === 3 ? 'bg-pink-500/20 border-pink-500/50' : day < 3 ? 'bg-zinc-800 border-zinc-700 opacity-50' : 'bg-zinc-900 border-zinc-800'}`}>
-                      <span className="text-[10px] font-bold text-zinc-500">DAY {day}</span>
-                      <Gift size={20} className={day === 3 ? 'text-pink-500' : 'text-zinc-600'} />
-                    </div>
-                  ))}
-                </div>
-                <Button className="w-full mt-4 bg-pink-600 hover:bg-pink-500" onClick={() => { haptics.success(); setGameState('IDLE'); }}>
-                  Claim Day 3
-                </Button>
-              </div>
-
-              {/* Daily Quests */}
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-3xl p-6">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-zinc-400 mb-4">Daily Quests</h3>
-                <div className="space-y-3">
-                  <QuestItem title="Complete 3 Levels" progress={1} total={3} reward="+50 Pts" />
-                  <QuestItem title="Earn 500 Points" progress={500} total={500} reward="+1 Undo" completed />
-                  <QuestItem title="No Mistakes Level" progress={0} total={1} reward="+1 Tube" />
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
 
         {gameState === 'PAUSED' && (
           <motion.div 
@@ -651,6 +643,40 @@ export const ColorSort = () => {
             <Button onClick={() => setScreen('EVENT_DETAILS')} className="w-full max-w-[280px] py-5 text-lg font-black tracking-widest uppercase italic">
               {t.common.backToMenu || "Back to Arenas"}
             </Button>
+          </motion.div>
+        )}
+
+        {gameState === 'MOVES_OUT' && (
+          <motion.div
+            key="moves_out"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-zinc-950 z-[100] flex flex-col items-center justify-center p-8 text-center safe-top safe-pb"
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="w-20 h-20 bg-yellow-500/20 rounded-3xl flex items-center justify-center mb-6 border border-yellow-500/30 shadow-[0_0_30px_rgba(234,179,8,0.2)]"
+            >
+              <AlertCircle size={40} className="text-yellow-400" />
+            </motion.div>
+            <h2 className="text-3xl font-black tracking-tighter mb-2 uppercase italic text-yellow-400">
+              {t.colorSort?.noMoves || "No Moves Left!"}
+            </h2>
+            <div className="bg-zinc-900/80 backdrop-blur-md w-full max-w-[280px] p-5 rounded-3xl border border-zinc-800 mb-8 mt-4">
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">{t.colorSort?.score || "Score"}</p>
+              <p className="text-5xl font-black text-pink-500 tracking-tighter">{score}</p>
+            </div>
+            <div className="flex flex-col gap-3 w-full max-w-[280px]">
+              <Button onClick={startGame} className="w-full py-5 text-lg font-black tracking-widest uppercase italic bg-pink-600 hover:bg-pink-500 flex items-center justify-center gap-3">
+                <RotateCcw size={20} /> {t.colorSort?.tryAgain || "Try Again"}
+              </Button>
+              <Button onClick={() => setGameState('IDLE')} variant="secondary" className="w-full py-4 text-sm font-bold uppercase tracking-widest">
+                {t.common.backToMenu || "Back"}
+              </Button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

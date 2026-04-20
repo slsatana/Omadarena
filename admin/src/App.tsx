@@ -129,16 +129,147 @@ const BASE_API_URL = import.meta.env.VITE_API_URL || `http://${window.location.h
 const API_URL = `${BASE_API_URL}/admin`;
 const myDataProvider = dataProvider(API_URL, axiosInstance as any); // using custom axios instance with Bearer token!
 
+// ============================================================
+// DEVICE FINGERPRINT: Protect admin panel on new devices
+// ============================================================
+const DEVICE_FP_KEY = 'admin_device_fp';
+const ADMIN_DEVICE_PASS_KEY = 'admin_device_verified';
+
+function getOrCreateDeviceFingerprint(): string {
+  let fp = localStorage.getItem(DEVICE_FP_KEY);
+  if (!fp) {
+    // Generate stable semi-unique device fingerprint
+    const nav = window.navigator;
+    fp = btoa([
+      nav.userAgent.slice(0, 40),
+      nav.language,
+      screen.width,
+      screen.height,
+      new Date().getTimezoneOffset(),
+      Math.random().toString(36).slice(2, 8)
+    ].join('|')).slice(0, 32);
+    localStorage.setItem(DEVICE_FP_KEY, fp);
+  }
+  return fp;
+}
+
+function isDeviceVerified(): boolean {
+  const storedFp = localStorage.getItem(DEVICE_FP_KEY);
+  const verifiedFp = localStorage.getItem(ADMIN_DEVICE_PASS_KEY);
+  return !!(storedFp && verifiedFp && storedFp === verifiedFp);
+}
+
+function markDeviceVerified() {
+  const fp = getOrCreateDeviceFingerprint();
+  localStorage.setItem(ADMIN_DEVICE_PASS_KEY, fp);
+}
+
+// Generate fingerprint immediately (creates if missing)
+getOrCreateDeviceFingerprint();
+
+// Handle token from URL — only save if device is already verified OR no existing token
 const urlParams = new URLSearchParams(window.location.search);
 const tokenFromUrl = urlParams.get('token');
+const existingToken = localStorage.getItem('admin_token');
+
 if (tokenFromUrl) {
-  localStorage.setItem('admin_token', tokenFromUrl);
+  if (isDeviceVerified() || !existingToken) {
+    // New device: store token pending verification, don't redirect fully yet
+    localStorage.setItem('admin_token_pending', tokenFromUrl);
+  } else {
+    // Known device: accept immediately
+    localStorage.setItem('admin_token', tokenFromUrl);
+  }
   if (window.history.replaceState) {
     window.history.replaceState({}, document.title, window.location.pathname);
   }
 }
 
 const App: React.FC = () => {
+  const [deviceCheckPassed, setDeviceCheckPassed] = React.useState(false);
+  const [devicePassword, setDevicePassword] = React.useState('');
+  const [devicePasswordError, setDevicePasswordError] = React.useState('');
+  const [showDevicePrompt, setShowDevicePrompt] = React.useState(false);
+
+  React.useEffect(() => {
+    const pendingToken = localStorage.getItem('admin_token_pending');
+    
+    if (pendingToken && !isDeviceVerified()) {
+      // Show device verification prompt
+      setShowDevicePrompt(true);
+    } else if (pendingToken && isDeviceVerified()) {
+      // Already verified device — accept the pending token
+      localStorage.setItem('admin_token', pendingToken);
+      localStorage.removeItem('admin_token_pending');
+      setDeviceCheckPassed(true);
+    } else {
+      setDeviceCheckPassed(true);
+    }
+  }, []);
+
+  const handleDeviceVerify = () => {
+    // @ts-ignore
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || '1553688';
+    if (devicePassword === adminPassword) {
+      markDeviceVerified();
+      const pendingToken = localStorage.getItem('admin_token_pending');
+      if (pendingToken) {
+        localStorage.setItem('admin_token', pendingToken);
+        localStorage.removeItem('admin_token_pending');
+      }
+      setShowDevicePrompt(false);
+      setDeviceCheckPassed(true);
+    } else {
+      setDevicePasswordError('Неверный пароль');
+    }
+  };
+
+  if (showDevicePrompt) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, background: '#030305',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', zIndex: 9999
+      }}>
+        <div style={{
+          background: '#18181b', border: '1px solid #3f3f46', borderRadius: 24,
+          padding: '40px 32px', width: '100%', maxWidth: 380, textAlign: 'center', boxShadow: '0 0 60px rgba(139,92,246,0.1)'
+        }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔐</div>
+          <h2 style={{ color: '#e4e4e7', margin: '0 0 8px', fontSize: 22, fontWeight: 800 }}>Новое устройство</h2>
+          <p style={{ color: '#71717a', margin: '0 0 24px', fontSize: 14 }}>
+            Вход с нового устройства. Введите пароль администратора для подтверждения.
+          </p>
+          <input
+            type="password"
+            value={devicePassword}
+            onChange={e => { setDevicePassword(e.target.value); setDevicePasswordError(''); }}
+            onKeyDown={e => e.key === 'Enter' && handleDeviceVerify()}
+            placeholder="Пароль администратора"
+            autoFocus
+            style={{
+              width: '100%', padding: '12px 16px', background: '#27272a', border: `1px solid ${devicePasswordError ? '#ef4444' : '#3f3f46'}`,
+              borderRadius: 12, color: '#e4e4e7', fontSize: 15, marginBottom: 8, boxSizing: 'border-box', outline: 'none'
+            }}
+          />
+          {devicePasswordError && <p style={{ color: '#ef4444', margin: '0 0 12px', fontSize: 13 }}>{devicePasswordError}</p>}
+          <button
+            onClick={handleDeviceVerify}
+            style={{
+              width: '100%', padding: '13px', background: '#8b5cf6', border: 'none',
+              borderRadius: 12, color: 'white', fontSize: 15, fontWeight: 800,
+              cursor: 'pointer', marginTop: 8, letterSpacing: '0.05em'
+            }}
+          >
+            Подтвердить устройство
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!deviceCheckPassed) return null;
+
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ConfigProvider theme={premiumDarkTheme}>

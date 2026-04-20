@@ -54,6 +54,7 @@ export const NeonJump: React.FC = () => {
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number>(null);
+  const lastTimestampRef = useRef<number>(0);
   const gameRef = useRef({
     player: { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT - 100, vx: 0, vy: 0, size: 20 },
     platforms: [] as Platform[],
@@ -96,7 +97,7 @@ export const NeonJump: React.FC = () => {
     setIsPaused(false);
   };
 
-  const update = () => {
+  const update = (deltaTime: number) => {
     if (isPaused) {
       gameRef.current.lastSpeedUpdate = Date.now();
       return;
@@ -110,14 +111,14 @@ export const NeonJump: React.FC = () => {
       g.lastSpeedUpdate = now;
     }
 
-    // Player movement
+    // Player movement (delta-time normalized to 60fps)
     if (g.keys.left) g.player.vx = -5;
     else if (g.keys.right) g.player.vx = 5;
-    else g.player.vx *= 0.8;
+    else g.player.vx *= Math.pow(0.8, deltaTime);
 
-    g.player.x += g.player.vx;
-    g.player.vy += GRAVITY;
-    g.player.y += g.player.vy;
+    g.player.x += g.player.vx * deltaTime;
+    g.player.vy += GRAVITY * deltaTime;
+    g.player.y += g.player.vy * deltaTime;
 
     // Screen wrap
     if (g.player.x < 0) g.player.x = CANVAS_WIDTH;
@@ -189,7 +190,7 @@ export const NeonJump: React.FC = () => {
     // Moving platforms
     g.platforms.forEach(p => {
       if (p.type === 'moving' && p.direction) {
-        p.x += p.direction * g.speed * 0.5;
+        p.x += p.direction * g.speed * 0.5 * deltaTime;
         if (p.x <= 0 || p.x >= CANVAS_WIDTH - PLATFORM_WIDTH) p.direction *= -1;
       }
     });
@@ -201,7 +202,7 @@ export const NeonJump: React.FC = () => {
     // Update death line
     let currentBottom = g.cameraY + CANVAS_HEIGHT;
     if (g.score > 500) {
-      g.deathLineY -= 0.3; // Move up very slowly
+      g.deathLineY -= 0.3 * deltaTime; // Move up very slowly
       if (g.deathLineY > currentBottom) {
         g.deathLineY = currentBottom;
       }
@@ -329,16 +330,21 @@ export const NeonJump: React.FC = () => {
         const ctx = canvas?.getContext('2d');
         
         if (!ctx) {
-          // If canvas is not ready, try again in the next frame
           animationFrameId = requestAnimationFrame(startLoop);
           return;
         }
 
-        const loop = () => {
-          update();
+        const loop = (timestamp: number) => {
+          // Delta-time: normalize to 60fps baseline. Cap at 3 frames to prevent huge jumps after tab switch
+          const rawDelta = lastTimestampRef.current > 0 ? timestamp - lastTimestampRef.current : 16.67;
+          const deltaTime = Math.min(rawDelta / (1000 / 60), 3);
+          lastTimestampRef.current = timestamp;
+
+          update(deltaTime);
           draw(ctx);
           animationFrameId = requestAnimationFrame(loop);
         };
+        lastTimestampRef.current = 0;
         animationFrameId = requestAnimationFrame(loop);
       }
     };

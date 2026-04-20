@@ -25,4 +25,9 @@ export class VenueController {
   async getStats(@Request() req: any) {
     return this.venueService.getStats(req.user.userId);
   }
+
+  @Get('detailed-stats')
+  async getDetailedStats(@Request() req: any) {
+    return this.venueService.getDetailedStats(req.user.userId);
+  }
 }

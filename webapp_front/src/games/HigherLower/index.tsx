@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ArrowUp, 
   ArrowDown, 
+  Equal,
   Info, 
   History, 
   Heart, 
@@ -26,7 +27,7 @@ interface HistoryItem {
   id: string;
   prev: number;
   next: number;
-  choice: 'higher' | 'lower';
+  choice: 'higher' | 'lower' | 'equal';
   isX2: boolean;
   success: boolean;
   points: number;
@@ -75,7 +76,7 @@ export const HigherLower: React.FC = () => {
     }
   };
 
-  const handleGuess = async (choice: 'higher' | 'lower') => {
+  const handleGuess = async (choice: 'higher' | 'lower' | 'equal') => {
     if (isProcessing || livesRemaining <= 0 || dailyPoints >= MAX_DAILY_POINTS) return;
 
     setIsProcessing(true);
@@ -83,10 +84,11 @@ export const HigherLower: React.FC = () => {
     setNextNumber(next);
 
     let success = false;
-    let isEqual = false;
-    if (next === currentNumber) {
-      isEqual = true;
-      success = false;
+    const isEqual = (next === currentNumber);
+    
+    if (choice === 'equal') {
+      // Equal button: win only if numbers truly match
+      success = isEqual;
     } else if (choice === 'higher') {
       success = next > currentNumber;
     } else {
@@ -99,14 +101,17 @@ export const HigherLower: React.FC = () => {
     let newLivesRemaining = livesRemaining;
 
     if (success) {
-      pointsGained = Math.ceil(currentNumber / 10) * (isX2 ? 2 : 1);
-      // Cap at daily limit happens locally visually without local state caching
-      addPoints(pointsGained); // Add to global user points too
+      // Equal button earns fixed 5 pts (low probability reward), higher/lower earns based on number
+      if (choice === 'equal') {
+        pointsGained = 5 * (isX2 ? 2 : 1);
+      } else {
+        pointsGained = Math.ceil(currentNumber / 10) * (isX2 ? 2 : 1);
+      }
+      addPoints(pointsGained);
       updateHighScore(dailyPoints + pointsGained);
     } else {
       lifeLost = true;
       if (isX2) {
-        // Lose entire life
         newLifeParts = 0;
       } else {
         newLifeParts -= 1;
@@ -123,11 +128,9 @@ export const HigherLower: React.FC = () => {
 
     const message = success 
       ? `${t.higherLower.correct} +${pointsGained} ${t.higherLower.points}` 
-      : isEqual 
-        ? t.higherLower.equal 
-        : isX2 
-          ? t.higherLower.wrong 
-          : t.higherLower.wrong;
+      : isX2 
+        ? t.higherLower.wrong 
+        : t.higherLower.wrong;
 
     setLastResult({ success, points: pointsGained, message, isEqual });
 
@@ -456,33 +459,55 @@ export const HigherLower: React.FC = () => {
                 </div>
               </button>
 
-              <div className="grid grid-cols-2 gap-4">
-                <Button 
+              <div className="grid grid-cols-3 gap-3">
+                <motion.button 
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => handleGuess('higher')}
                   disabled={isProcessing}
-                  className="py-8 rounded-[40px] bg-[#0A84FF] flex flex-col items-center gap-2 group overflow-hidden relative"
+                  className="py-7 rounded-[32px] text-white flex flex-col items-center gap-2 group overflow-hidden relative disabled:opacity-50"
+                  style={{ background: '#0A84FF', boxShadow: '0 4px 20px rgba(10,132,255,0.3)' }}
                 >
                   <motion.div 
                     animate={isProcessing ? {} : { y: [0, -5, 0] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
-                    <ArrowUp size={32} />
+                    <ArrowUp size={28} />
                   </motion.div>
-                  <span className="font-black italic text-xl tracking-tighter uppercase">{t.higherLower.higher}</span>
-                </Button>
-                <Button 
+                  <span className="font-black italic text-sm md:text-base tracking-tighter uppercase">{t.higherLower.higher}</span>
+                </motion.button>
+                
+                <motion.button 
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleGuess('equal')}
+                  disabled={isProcessing}
+                  className="py-7 rounded-[32px] text-[#050505] flex flex-col items-center gap-2 group disabled:opacity-50"
+                  style={{ background: '#FFD60A', boxShadow: '0 4px 20px rgba(255,214,10,0.3)' }}
+                >
+                  <motion.div 
+                    animate={isProcessing ? {} : { scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="text-[#050505]"
+                  >
+                    <Equal size={28} />
+                  </motion.div>
+                  <span className="font-black italic text-sm md:text-base tracking-tighter uppercase text-[#050505]">{t.higherLower.equalBtn || 'Равно'}</span>
+                </motion.button>
+
+                <motion.button 
+                  whileTap={{ scale: 0.95 }}
                   onClick={() => handleGuess('lower')}
                   disabled={isProcessing}
-                  className="py-8 rounded-[40px] bg-white/10 flex flex-col items-center gap-2 group"
+                  className="py-7 rounded-[32px] text-white flex flex-col items-center gap-2 group disabled:opacity-50"
+                  style={{ background: '#0A84FF', boxShadow: '0 4px 20px rgba(10,132,255,0.3)' }}
                 >
                   <motion.div 
                     animate={isProcessing ? {} : { y: [0, 5, 0] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
-                    <ArrowDown size={32} />
+                    <ArrowDown size={28} />
                   </motion.div>
-                  <span className="font-black italic text-xl tracking-tighter uppercase">{t.higherLower.lower}</span>
-                </Button>
+                  <span className="font-black italic text-sm md:text-base tracking-tighter uppercase">{t.higherLower.lower}</span>
+                </motion.button>
               </div>
             </div>
           </motion.div>

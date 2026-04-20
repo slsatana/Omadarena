@@ -47,7 +47,11 @@ import {
   FlaskConical,
   Scan,
   XCircle,
-  History
+  Copy,
+  Pencil,
+  History,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useGame, UserRole } from '../context/GameContext';
@@ -177,7 +181,7 @@ export const LoginScreen = () => {
     <ScreenWrapper>
       <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
         <div className="flex justify-between items-center mb-4">
-          <BackButton onClick={() => setScreen('WELCOME')} />
+          <BackButton />
           <div className="flex gap-3">
             <LanguageSwitcher />
           </div>
@@ -428,29 +432,32 @@ export const EventsListScreen = () => {
       }
     ];
 
-    const activeGamesList = (Object.values(gamesStats) as any[]).sort((a, b) => {
-        if (a.venueNetworkName && !b.venueNetworkName) return -1;
-        if (!a.venueNetworkName && b.venueNetworkName) return 1;
-        return 0;
-    });
-    
-    let arenas = activeGamesList.map((stat, index) => {
-        const staticTemplate = staticArenas.find(a => a.gameId === stat.id);
-        return {
-           id: index + 100, // Safe synthetic id
-           gameId: stat.id,
-           title: stat.isActive === false ? t.events.comingSoon : (stat.displayName || staticTemplate?.title || stat.name || stat.id),
-           status: stat.isActive === false ? t.events.comingSoon : t.events.active,
-           icon: staticTemplate?.icon || <Gamepad2 className="text-[var(--primary)]" size={28} />,
-           color: staticTemplate?.color || "bg-[var(--primary)]/10",
-           date: staticTemplate?.date || "New",
-           image: stat.imageUrl || staticTemplate?.image || "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=400"
-        };
+    let arenas = Object.keys(t.gameDetails).map(gameId => {
+      const stat = gamesStats[gameId];
+      const staticTemplate = staticArenas.find(a => a.gameId === gameId);
+      
+      return {
+        id: gameId,
+        title: stat?.displayName || staticTemplate?.title || gameId,
+        color: staticTemplate?.color || 'bg-violet-500/20',
+        icon: staticTemplate?.icon || <Gamepad2 size={24} className="text-violet-400" />,
+        image: stat?.imageUrl || staticTemplate?.image || "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=400",
+        gameId: gameId,
+        status: stat?.isActive !== false ? t.events.active : 'Скоро',
+        isActive: stat?.isActive !== false,
+        venueNetworkName: stat?.venueNetworkName || null
+      };
     });
 
-    if (arenas.length === 0) {
-      arenas = staticArenas;
-    }
+    arenas.sort((a, b) => {
+      const aHasVenue = a.venueNetworkName ? 1 : 0;
+      const bHasVenue = b.venueNetworkName ? 1 : 0;
+      if (aHasVenue !== bHasVenue) return bHasVenue - aHasVenue;
+      
+      const aActive = a.isActive ? 1 : 0;
+      const bActive = b.isActive ? 1 : 0;
+      return bActive - aActive;
+    });
 
   return (
     <ScreenWrapper>
@@ -478,25 +485,27 @@ export const EventsListScreen = () => {
                 key={arena.id}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
-                  if (arena.status === t.events.active) {
+                  if (arena.isActive) {
                     setSelectedGameId(arena.gameId);
                     setScreen('EVENT_DETAILS');
                   }
                 }}
                 className="flex flex-col items-center gap-2.5 group cursor-pointer"
               >
-                <div className={`relative aspect-[4/4.5] w-full rounded-[24px] overflow-hidden border transition-all duration-300 ${
-                  arena.status === t.events.active 
-                    ? 'border-[var(--primary)]/30 shadow-[0_10px_20px_rgba(0,0,0,0.4)] hover:shadow-lg' 
-                    : 'border-white/5 opacity-40 grayscale'
-                }`}>
+                <div className={`p-4 rounded-3xl mb-4 relative aspect-[4/3] w-full flex items-center justify-center bg-zinc-900 group-hover:scale-[1.02] transition-transform overflow-hidden ${arena.isActive ? '' : 'opacity-60 saturate-0'}`}>
                   <img 
                     src={arena.image} 
-                    alt="" 
-                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 opacity-80"
+                    alt={arena.title}
+                    className="absolute inset-0 w-full h-full object-cover rounded-3xl opacity-80"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-black/40 to-transparent rounded-3xl" />
+                  
+                  {!arena.isActive && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-30 rounded-3xl">
+                      <span className="text-white font-bold tracking-widest text-lg uppercase bg-gradient-to-r from-red-600 to-red-500 px-5 py-2 rounded-2xl shadow-lg border border-red-400/30">Скоро</span>
+                    </div>
+                  )}
                   
                   <div className="absolute inset-x-0 bottom-4 flex justify-center z-10 transition-transform duration-300 group-hover:-translate-y-1">
                     <div className={`w-12 h-12 rounded-xl ${arena.color} flex items-center justify-center border border-white/10 backdrop-blur-md shadow-xl`}>
@@ -504,7 +513,7 @@ export const EventsListScreen = () => {
                     </div>
                   </div>
 
-                  {arena.status === t.events.active && (
+                  {arena.isActive && (
                     <div className="absolute top-3 right-3 z-20">
                       <div className="w-2.5 h-2.5 rounded-full bg-[var(--primary)] shadow-[0_0_8px_var(--primary)] animate-pulse" />
                     </div>
@@ -561,7 +570,7 @@ export const EventDetailsScreen = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg)] via-transparent to-transparent" />
         <div className="absolute top-0 left-6 safe-top z-20">
-          <BackButton onClick={() => setScreen('EVENTS')} />
+          <BackButton />
         </div>
       </div>
       
@@ -669,7 +678,7 @@ export const PromoCodeScreen = () => {
     <ScreenWrapper>
       <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
         <div className="flex justify-between items-center mb-12">
-          <BackButton onClick={() => setScreen('PROFILE')} />
+          <BackButton />
         </div>
         
         <div className="flex-1">
@@ -801,7 +810,7 @@ export const PrizeScannerScreen = () => {
     <ScreenWrapper>
       <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
         <div className="flex justify-between items-center mb-12">
-          <BackButton onClick={() => setScreen('VENUE_DASHBOARD')} />
+          <BackButton />
           <h2 className="text-xl font-bold">{t.qrScanner?.scannerTitle || 'Выдача Призов'}</h2>
         </div>
 
@@ -878,69 +887,326 @@ export const PrizeScannerScreen = () => {
 };
 
 export const VenueDashboard = () => {
-  const { setScreen, user, t } = useGame();
-  const [stats, setStats] = useState({ players: 0, prizes: 0, avgScore: 0, active: 0, pending: 0 });
+  const { setScreen, t } = useGame();
+  const [summary, setSummary] = useState({ players: 0, prizes: 0, avgScore: 0, active: 0, pending: 0 });
+  const [detailed, setDetailed] = useState<{ venueName: string | null; games: any[] }>({ venueName: null, games: [] });
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const vd = t.venueDashboard;
 
   useEffect(() => {
-    api.get('/venue/stats').then(res => {
-      if (res.data) setStats(res.data);
-    }).catch(e => console.error('Failed to load venue stats', e));
+    Promise.all([
+      api.get('/venue/stats').then(r => r.data).catch(() => null),
+      api.get('/venue/detailed-stats').then(r => r.data).catch(() => null),
+    ]).then(([s, d]) => {
+      if (s) setSummary(s);
+      if (d) setDetailed(d);
+      setLoading(false);
+    });
   }, []);
+
+  const formatTime = (totalSeconds: number) => {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    if (h > 0) return `${h}${vd?.hoursLabel || 'h'} ${m}${vd?.minutesLabel || 'm'}`;
+    return `${m}${vd?.minutesLabel || 'm'}`;
+  };
+
+  const selectedGame = detailed.games[selectedIdx] ?? null;
+
+  const gameColors = [
+    { accent: '#0a84ff', bg: 'rgba(10,132,255,0.15)', border: 'rgba(10,132,255,0.3)' },
+    { accent: '#30d158', bg: 'rgba(48,209,88,0.15)', border: 'rgba(48,209,88,0.3)' },
+    { accent: '#ff9f0a', bg: 'rgba(255,159,10,0.15)', border: 'rgba(255,159,10,0.3)' },
+    { accent: '#bf5af2', bg: 'rgba(191,90,242,0.15)', border: 'rgba(191,90,242,0.3)' },
+    { accent: '#ff375f', bg: 'rgba(255,55,95,0.15)', border: 'rgba(255,55,95,0.3)' },
+    { accent: '#64d2ff', bg: 'rgba(100,210,255,0.15)', border: 'rgba(100,210,255,0.3)' },
+  ];
+
+  const getColor = (idx: number) => gameColors[idx % gameColors.length];
 
   return (
     <ScreenWrapper>
-      <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-            <BackButton onClick={() => setScreen('PROFILE')} />
-            <h2 className="text-2xl font-extrabold tracking-tight">{t.venueDashboard?.title || 'Venue Dashboard'}</h2>
+      <div className="flex flex-col min-h-full safe-top safe-pb overflow-y-auto no-scrollbar">
+
+        {/* Header */}
+        <div className="flex justify-between items-center px-6 pt-6 pb-4">
+          <div className="flex items-center gap-3">
+            <BackButton />
+            <div>
+              <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest leading-none mb-0.5">
+                {detailed.venueName || 'Venue'}
+              </p>
+              <h2 className="text-xl font-extrabold tracking-tight leading-tight">{vd?.title || 'Dashboard'}</h2>
+            </div>
           </div>
-          <div className="bg-[var(--arena-cyan)]/20 text-[var(--arena-cyan)] text-[10px] font-bold px-3 py-1 rounded-full border border-[var(--arena-cyan)]/30">
-            {t.gameDetails[user.venueGameId as keyof typeof t.gameDetails]?.title || t.gameDetails.ARENA_RUNNER.title}
+          <div className="w-10 h-10 rounded-2xl bg-[var(--arena-cyan)]/20 flex items-center justify-center border border-[var(--arena-cyan)]/30">
+            <Layers size={18} className="text-[var(--arena-cyan)]" />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="bg-[var(--surface)] p-5 rounded-[32px] border border-[var(--border)]">
-            <Users size={20} className="text-[var(--arena-cyan)] mb-2" />
-            <p className="text-2xl font-black">{stats.players.toLocaleString()}</p>
-            <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">{t.venueDashboard?.totalPlayers || 'Total Players'}</p>
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+              className="w-8 h-8 border-2 border-[var(--primary)] border-t-transparent rounded-full"
+            />
           </div>
-          <div className="bg-[var(--surface)] p-5 rounded-[32px] border border-[var(--border)]">
-            <Gift size={20} className="text-[var(--secondary)] mb-2" />
-            <p className="text-2xl font-black">{stats.prizes}</p>
-            <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">{t.venueDashboard?.prizesIssued || 'Prizes Issued'}</p>
-          </div>
-        </div>
+        ) : (
+          <>
+            {/* Summary Row */}
+            <div className="grid grid-cols-3 gap-3 px-6 mb-5">
+              {[
+                { icon: <Users size={16} />, value: summary.players, label: vd?.totalPlayers || 'Players', color: '#0a84ff' },
+                { icon: <Gift size={16} />, value: summary.pending, label: vd?.pendingPrizes || 'Pending', color: '#ff9f0a' },
+                { icon: <CheckCircle2 size={16} />, value: summary.prizes - summary.pending, label: vd?.redeemedPrizes || 'Redeemed', color: '#30d158' },
+              ].map((item, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.07 }}
+                  className="bg-[var(--surface)] rounded-[20px] border border-[var(--border)] p-3.5 text-center"
+                >
+                  <div className="flex justify-center mb-1.5" style={{ color: item.color }}>{item.icon}</div>
+                  <p className="text-lg font-black leading-none">{item.value.toLocaleString()}</p>
+                  <p className="text-[9px] text-[var(--text-muted)] uppercase font-bold tracking-wider mt-1 leading-tight">{item.label}</p>
+                </motion.div>
+              ))}
+            </div>
 
-        <div className="bg-[var(--surface)] p-6 rounded-[32px] border border-[var(--border)] mb-8">
-          <h3 className="text-lg font-bold mb-4">{t.venueDashboard?.gameStats || 'Game Statistics'}</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--text-muted)] font-medium">{t.venueDashboard?.avgScore || 'Avg. Score'}</span>
-              <span className="font-bold">{stats.avgScore.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--text-muted)] font-medium">{t.venueDashboard?.dailyActive || 'Daily Active'}</span>
-              <span className="font-bold">{stats.active}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-[var(--text-muted)] font-medium">{t.venueDashboard?.pendingPrizes || 'Pending Prizes'}</span>
-              <span className="font-bold text-[var(--secondary)]">{stats.pending}</span>
-            </div>
-          </div>
-        </div>
+            {detailed.games.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-4 px-8 text-center">
+                <div className="w-16 h-16 rounded-3xl bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center">
+                  <Gamepad2 size={32} className="text-[var(--text-muted)]" />
+                </div>
+                <p className="text-[var(--text-muted)] font-bold">{vd?.noData || 'No activity yet'}</p>
+              </div>
+            ) : (
+              <>
+                {/* Game Selector Tabs */}
+                {detailed.games.length > 1 && (
+                  <div className="px-6 mb-4">
+                    <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest mb-2">{vd?.selectGame || 'Select Game'}</p>
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                      {detailed.games.map((game, idx) => {
+                        const col = getColor(idx);
+                        const isSelected = selectedIdx === idx;
+                        return (
+                          <motion.button
+                            key={game.gameId}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setSelectedIdx(idx)}
+                            className="flex-shrink-0 px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all duration-200"
+                            style={{
+                              background: isSelected ? col.bg : 'var(--surface)',
+                              borderColor: isSelected ? col.accent : 'var(--border)',
+                              color: isSelected ? col.accent : 'var(--text-muted)',
+                            }}
+                          >
+                            {game.gameName}
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-        <Button 
-          onClick={() => setScreen('PRIZE_SCANNER')}
-          className="w-full py-6 rounded-[24px] flex items-center justify-center gap-3 text-xl bg-[var(--arena-cyan)] text-zinc-950"
-        >
-          <QrCode size={24} /> {t.venueDashboard?.scanPrize || 'Scan Prize QR'}
-        </Button>
+                {/* Selected Game Stats */}
+                {selectedGame && (
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={selectedGame.gameId}
+                      initial={{ opacity: 0, x: 16 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -16 }}
+                      transition={{ duration: 0.25 }}
+                      className="px-6 space-y-4 pb-4"
+                    >
+                      {/* Game Header */}
+                      <div
+                        className="rounded-[28px] overflow-hidden border relative"
+                        style={{ borderColor: getColor(selectedIdx).border }}
+                      >
+                        {selectedGame.imageUrl && (
+                          <img
+                            src={selectedGame.imageUrl}
+                            alt={selectedGame.gameName}
+                            className="absolute inset-0 w-full h-full object-cover opacity-20"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        <div
+                          className="relative p-5"
+                          style={{ background: getColor(selectedIdx).bg }}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-base font-black tracking-tight" style={{ color: getColor(selectedIdx).accent }}>
+                              {selectedGame.gameName}
+                            </h3>
+                            <div
+                              className="text-[10px] font-bold px-2.5 py-1 rounded-full border"
+                              style={{
+                                background: selectedGame.isActive ? 'rgba(48,209,88,0.15)' : 'rgba(255,55,95,0.1)',
+                                borderColor: selectedGame.isActive ? 'rgba(48,209,88,0.4)' : 'rgba(255,55,95,0.4)',
+                                color: selectedGame.isActive ? '#30d158' : '#ff375f',
+                              }}
+                            >
+                              {selectedGame.isActive ? '● LIVE' : '○ OFF'}
+                            </div>
+                          </div>
+
+                          {/* 4-stat grid */}
+                          <div className="grid grid-cols-2 gap-2.5">
+                            {[
+                              { icon: <Users size={14}/>, label: vd?.totalPlayers || 'Players', value: selectedGame.playersCount },
+                              { icon: <Clock size={14}/>, label: vd?.sessions || 'Sessions', value: selectedGame.totalSessions },
+                              { icon: <Zap size={14}/>, label: vd?.todayPlayers || 'Today', value: selectedGame.todaySessions },
+                              { icon: <Trophy size={14}/>, label: vd?.maxScore || 'Best Score', value: selectedGame.maxScore.toLocaleString() },
+                            ].map((s, i) => (
+                              <div key={i} className="bg-black/20 backdrop-blur-sm rounded-[16px] p-3 border border-white/5">
+                                <div className="flex items-center gap-1.5 mb-1.5" style={{ color: getColor(selectedIdx).accent }}>
+                                  {s.icon}
+                                  <span className="text-[9px] uppercase font-bold tracking-wider text-white/50">{s.label}</span>
+                                </div>
+                                <p className="text-xl font-black text-white leading-none">{s.value}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Extended Stats Row */}
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {[
+                          {
+                            label: vd?.totalTime || 'Playtime',
+                            value: formatTime(selectedGame.totalTimePlayedSec),
+                            icon: <History size={14} />,
+                            color: '#bf5af2'
+                          },
+                          {
+                            label: vd?.avgScore || 'Avg Score',
+                            value: selectedGame.avgScore.toLocaleString(),
+                            icon: <Flame size={14} />,
+                            color: '#ff9f0a'
+                          },
+                          {
+                            label: vd?.pointsAwarded || 'Points',
+                            value: selectedGame.totalPointsAwarded > 999
+                              ? `${(selectedGame.totalPointsAwarded / 1000).toFixed(1)}K`
+                              : String(selectedGame.totalPointsAwarded),
+                            icon: <Sparkles size={14} />,
+                            color: '#30d158'
+                          },
+                        ].map((s, i) => (
+                          <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 + i * 0.06 }}
+                            className="bg-[var(--surface)] rounded-[18px] border border-[var(--border)] p-3"
+                          >
+                            <div className="mb-2" style={{ color: s.color }}>{s.icon}</div>
+                            <p className="text-base font-black leading-tight">{s.value}</p>
+                            <p className="text-[8px] text-[var(--text-muted)] uppercase font-bold tracking-wider mt-1">{s.label}</p>
+                          </motion.div>
+                        ))}
+                      </div>
+
+                      {/* Prize Stats */}
+                      <div className="bg-[var(--surface)] rounded-[24px] border border-[var(--border)] p-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Gift size={16} className="text-[var(--secondary)]" />
+                          <h4 className="text-sm font-bold">{vd?.prizesIssued || 'Prizes'}</h4>
+                        </div>
+                        <div className="flex gap-3">
+                          <div className="flex-1 text-center p-3 rounded-[14px] bg-orange-500/10 border border-orange-500/20">
+                            <p className="text-xl font-black text-orange-400">{selectedGame.pendingPrizes}</p>
+                            <p className="text-[9px] text-orange-300/70 uppercase font-bold tracking-wider mt-0.5">{vd?.pendingPrizes || 'Pending'}</p>
+                          </div>
+                          <div className="flex-1 text-center p-3 rounded-[14px] bg-green-500/10 border border-green-500/20">
+                            <p className="text-xl font-black text-green-400">{selectedGame.redeemedPrizes}</p>
+                            <p className="text-[9px] text-green-300/70 uppercase font-bold tracking-wider mt-0.5">{vd?.redeemedPrizes || 'Redeemed'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Top Players */}
+                      <div className="bg-[var(--surface)] rounded-[24px] border border-[var(--border)] overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+                          <div className="flex items-center gap-2">
+                            <Medal size={16} className="text-[var(--secondary)]" />
+                            <h4 className="text-sm font-bold">{vd?.topPlayers || 'Top Players'}</h4>
+                          </div>
+                          <span className="text-[10px] text-[var(--text-muted)] font-bold">{selectedGame.topPlayers?.length ?? 0}</span>
+                        </div>
+
+                        {!selectedGame.topPlayers?.length ? (
+                          <div className="flex items-center justify-center py-8 text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
+                            {vd?.noData || 'No activity yet'}
+                          </div>
+                        ) : (
+                          <div>
+                            {/* Header Row */}
+                            <div className="grid grid-cols-[24px_1fr_60px_50px] gap-2 px-4 py-2 text-[9px] text-[var(--text-muted)] uppercase font-bold tracking-wider border-b border-[var(--border)]/50">
+                              <span>#</span>
+                              <span>Player</span>
+                              <span className="text-right">Score</span>
+                              <span className="text-right">Time</span>
+                            </div>
+                            {selectedGame.topPlayers.map((player: any, i: number) => (
+                              <motion.div
+                                key={i}
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.04 }}
+                                className={`grid grid-cols-[24px_1fr_60px_50px] gap-2 items-center px-4 py-3 ${i !== selectedGame.topPlayers.length - 1 ? 'border-b border-[var(--border)]/40' : ''}`}
+                              >
+                                <span
+                                  className={`text-[11px] font-black ${i === 0 ? 'text-yellow-400' : i === 1 ? 'text-zinc-300' : i === 2 ? 'text-orange-400' : 'text-[var(--text-muted)]'}`}
+                                >
+                                  {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`}
+                                </span>
+                                <div>
+                                  <p className="text-xs font-bold text-white truncate">{player.name}</p>
+                                  <p className="text-[9px] text-[var(--text-muted)]">{player.sessions} {vd?.sessions?.toLowerCase() || 'sessions'}</p>
+                                </div>
+                                <p className="text-xs font-black text-right" style={{ color: getColor(selectedIdx).accent }}>
+                                  {player.bestScore.toLocaleString()}
+                                </p>
+                                <p className="text-[10px] font-bold text-right text-[var(--text-muted)]">
+                                  {formatTime(player.totalTimeSec)}
+                                </p>
+                              </motion.div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        {/* Scan Button */}
+        <div className="px-6 pt-2 pb-6 mt-auto">
+          <Button
+            onClick={() => setScreen('PRIZE_SCANNER')}
+            className="w-full py-5 rounded-[24px] flex items-center justify-center gap-3 text-base font-extrabold bg-[var(--arena-cyan)] text-zinc-950"
+          >
+            <QrCode size={22} /> {vd?.scanPrize || 'Scan Prize QR'}
+          </Button>
+        </div>
       </div>
     </ScreenWrapper>
   );
 };
+
 
 export const AdminDashboard = () => {
   const { setScreen, prizes, setPrizes, t } = useGame();
@@ -973,7 +1239,7 @@ export const AdminDashboard = () => {
       <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
-            <BackButton onClick={() => setScreen('PROFILE')} />
+            <BackButton />
             <h2 className="text-2xl font-extrabold tracking-tight">Admin Console</h2>
           </div>
           <Shield size={24} className="text-[var(--primary)]" />
@@ -1189,31 +1455,139 @@ export const AdminDashboard = () => {
 };
 
 export const LeaderboardScreen = () => {
-  const { setScreen, user, t } = useGame();
+  const { setScreen, user, setUser, t } = useGame();
   const [tab, setTab] = useState<'GLOBAL' | 'FRIENDS'>('GLOBAL');
   const [timeTab, setTimeTab] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('DAILY');
   const [players, setPlayers] = useState<any[]>([]);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [pendingReqs, setPendingReqs] = useState<any[]>([]);
+  const [showAddFriend, setShowAddFriend] = useState(false);
+  const [friendCodeInput, setFriendCodeInput] = useState('');
+  const [addingFriend, setAddingFriend] = useState(false);
+  const [addFriendMsg, setAddFriendMsg] = useState('');
 
   useEffect(() => {
     api.get('/games/leaderboards/global').then(res => {
       if (res.data) {
-        // Find local user in the list to highlight
         const mapped = res.data.map((p: any) => ({
           ...p,
-          avatar: "🎮", // default avatar since we don't have user avatars
-          isUser: p.name === user.name || p.name === `User ${user.phone?.slice(-4) || ''}`
+          avatar: p.avatarUrl || "🎮",
+          isUser: p.userId === user.id || p.name === user.name
         }));
         setPlayers(mapped);
       }
     }).catch(e => console.error(e));
-  }, [user]);
+
+    if (!user.friendCode) {
+      api.get('/friends/my-code').then(res => {
+        if (res.data?.friendCode) {
+          setUser({ ...user, friendCode: res.data.friendCode });
+        }
+      }).catch(() => {});
+    }
+  }, [user.id]);
+
+  useEffect(() => {
+    if (tab === 'FRIENDS') {
+      loadFriends();
+    }
+  }, [tab]);
+
+  const loadFriends = () => {
+    Promise.all([
+      api.get('/friends/leaderboard'),
+      api.get('/friends/pending')
+    ]).then(([lb, pending]) => {
+      setFriends(lb.data || []);
+      setPendingReqs(pending.data || []);
+    }).catch(() => {});
+  };
+
+  const handleAddFriend = async () => {
+    if (!friendCodeInput.trim()) return;
+    setAddingFriend(true);
+    setAddFriendMsg('');
+    try {
+      const res = await api.post('/friends/add', { friendCode: friendCodeInput.trim().toUpperCase() });
+      setAddFriendMsg(`✅ ${res.data.message}`);
+      setFriendCodeInput('');
+    } catch (e: any) {
+      setAddFriendMsg(`❌ ${e.response?.data?.message || 'Ошибка'}`);
+    } finally {
+      setAddingFriend(false);
+    }
+  };
+
+  const handleAccept = async (id: string) => {
+    await api.post(`/friends/${id}/accept`).catch(() => {});
+    loadFriends();
+  };
+
+  const handleRemove = async (id: string) => {
+    await api.delete(`/friends/${id}`).catch(() => {});
+    loadFriends();
+  };
+
+  const renderPlayer = (player: any, i: number) => (
+    <motion.div
+      key={player.id || i}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: i * 0.05 }}
+      className={`flex items-center justify-between p-4 rounded-[24px] border ${
+        player.isMe || player.isUser
+          ? 'bg-[var(--primary)]/10 border-[var(--primary)]/30 shadow-[0_0_15px_rgba(10,132,255,0.1)]' 
+          : 'bg-[var(--surface)] border-[var(--border)]'
+      }`}
+    >
+      <div className="flex items-center gap-4">
+        <span className={`w-6 text-sm font-black ${
+          player.rank === 1 ? 'text-[var(--secondary)]' : 
+          player.rank === 2 ? 'text-zinc-400' : 
+          player.rank === 3 ? 'text-orange-400' : 'text-[var(--text-muted)]'
+        }`}>
+          #{player.rank}
+        </span>
+        <div className="w-10 h-10 rounded-full bg-[var(--bg)] flex items-center justify-center text-xl border border-[var(--border)] overflow-hidden">
+          {player.avatarUrl?.startsWith('http')
+            ? <img src={player.avatarUrl} className="w-full h-full object-cover" alt="" />
+            : <span>{player.avatarUrl || player.avatar || '🎮'}</span>}
+        </div>
+        <div>
+          <h4 className="font-bold text-sm">{player.displayName || player.name || 'Player'}</h4>
+          <div className="flex items-center gap-2">
+            {(player.isMe || player.isUser) && <span className="text-[8px] font-black uppercase tracking-widest text-[var(--primary)]">You</span>}
+            {player.friendCode && (
+              <span 
+                className="text-[9px] font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded flex items-center gap-1 cursor-pointer active:scale-95" 
+                onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(player.friendCode).catch(()=>{}) }}
+              >
+                ID: {player.friendCode} <Copy size={8} />
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="text-right">
+          <p className="font-mono text-sm font-black text-[var(--primary)]">{player.score}</p>
+          <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Points</p>
+        </div>
+        {tab === 'FRIENDS' && !player.isMe && player.friendshipId && (
+          <button onClick={() => handleRemove(player.friendshipId)} className="p-1.5 rounded-full bg-red-500/10 border border-red-500/20 active:scale-90">
+            <X size={12} className="text-red-400" />
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
 
   return (
     <ScreenWrapper>
       <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
-            <BackButton onClick={() => setScreen('EVENTS')} />
+            <BackButton />
             <h2 className="text-2xl font-extrabold tracking-tight">{t.leaderboard.title}</h2>
           </div>
           <Medal size={24} className="text-[var(--secondary)]" />
@@ -1224,63 +1598,127 @@ export const LeaderboardScreen = () => {
             onClick={() => setTab('GLOBAL')}
             className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-full transition-colors ${tab === 'GLOBAL' ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)]'}`}
           >
-            Global
+            {t.leaderboard?.global || 'Global'}
           </button>
           <button 
             onClick={() => setTab('FRIENDS')}
-            className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-full transition-colors ${tab === 'FRIENDS' ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)]'}`}
+            className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-full transition-colors flex items-center justify-center gap-1.5 ${tab === 'FRIENDS' ? 'bg-[var(--primary)] text-white' : 'text-[var(--text-muted)]'}`}
           >
-            Friends
+            {t.leaderboard?.friends_tab || 'Friends'}
+            {pendingReqs.length > 0 && (
+              <span className="w-4 h-4 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center">
+                {pendingReqs.length}
+              </span>
+            )}
           </button>
         </div>
 
-        <div className="flex gap-2 mb-6">
-          {['DAILY', 'WEEKLY', 'MONTHLY'].map(t => (
-            <button 
-              key={t}
-              onClick={() => setTimeTab(t as any)}
-              className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-full border ${timeTab === t ? 'bg-[var(--text)] text-[var(--bg)] border-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}
+        {tab === 'GLOBAL' && (
+          <div className="flex gap-2 mb-6">
+            {['DAILY', 'WEEKLY', 'MONTHLY'].map(tp => (
+              <button 
+                key={tp}
+                onClick={() => setTimeTab(tp as any)}
+                className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-full border ${timeTab === tp ? 'bg-[var(--text)] text-[var(--bg)] border-[var(--text)]' : 'border-[var(--border)] text-[var(--text-muted)]'}`}
+              >
+                {t.leaderboard?.[tp.toLowerCase() as keyof typeof t.leaderboard] || tp}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {tab === 'FRIENDS' && (
+          <div className="mb-4 space-y-3">
+            {/* Add Friend Button */}
+            {user.friendCode && (
+              <div 
+                onClick={() => { navigator.clipboard.writeText(user.friendCode).catch(()=>{}); alert(t.promo?.accepted ? 'OK' : 'Copied'); }}
+                className="w-full flex flex-col items-center justify-center gap-1 p-4 rounded-2xl bg-[var(--surface)] border border-dashed border-[var(--primary)]/50 cursor-pointer active:scale-95 transition-transform"
+              >
+                <span className="text-[10px] font-black tracking-widest uppercase text-[var(--text-muted)]">{t.friends?.myCode || 'Ваш код:'}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-black text-white tracking-[0.2em]">{user.friendCode}</span>
+                  <Copy size={16} className="text-[var(--primary)]" />
+                </div>
+                <span className="text-[9px] text-[var(--primary)] uppercase font-bold mt-1">{t.friends?.clickToCopy || 'click to copy'}</span>
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowAddFriend(!showAddFriend)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-[var(--primary)]/10 border border-[var(--primary)]/30 text-[var(--primary)] text-sm font-black uppercase tracking-widest active:scale-98 transition-transform"
             >
-              {t}
+              <Users size={16} /> {t.friends?.addFriend || 'Add Friend'}
             </button>
-          ))}
-        </div>
+
+            {showAddFriend && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4 space-y-3"
+              >
+                <p className="text-xs text-[var(--text-muted)] font-medium">{t.friends?.enterCode || 'Enter code'}</p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={friendCodeInput}
+                    onChange={e => setFriendCodeInput(e.target.value.toUpperCase())}
+                    placeholder="XXXXXX"
+                    maxLength={6}
+                    className="flex-1 bg-[var(--bg)] border border-[var(--border)] rounded-xl px-3 py-2 text-sm font-black tracking-widest text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--primary)]"
+                  />
+                  <Button onClick={handleAddFriend} disabled={addingFriend} className="px-4 py-2 text-sm font-black">
+                    {addingFriend ? '...' : (t.friends?.add || 'Add')}
+                  </Button>
+                </div>
+                {addFriendMsg && (
+                  <p className={`text-xs font-medium ${addFriendMsg.startsWith('✅') ? 'text-green-400' : 'text-red-400'}`}>
+                    {addFriendMsg}
+                  </p>
+                )}
+              </motion.div>
+            )}
+
+            {/* Pending Requests */}
+            {pendingReqs.length > 0 && (
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-4">
+                <p className="text-xs font-black text-[var(--text-muted)] uppercase tracking-widest mb-3">{t.friends?.requests || 'Requests'} ({pendingReqs.length})</p>
+                <div className="space-y-2">
+                  {pendingReqs.map((req: any) => (
+                    <div key={req.id} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{req.user?.avatarUrl || '🎮'}</span>
+                        <span className="text-sm font-bold">{req.user?.displayName || 'Player'}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => handleAccept(req.id)} className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded-full text-xs font-black text-green-400 active:scale-95">
+                          ✓ {t.friends?.accept || 'Accept'}
+                        </button>
+                        <button onClick={() => handleRemove(req.id)} className="px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-full text-xs font-black text-red-400 active:scale-95">
+                          ✗
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 pb-6">
-          {players.map((player, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className={`flex items-center justify-between p-4 rounded-[24px] border ${
-                player.isUser 
-                  ? 'bg-[var(--primary)]/10 border-[var(--primary)]/30 shadow-[0_0_15px_rgba(10,132,255,0.1)]' 
-                  : 'bg-[var(--surface)] border-[var(--border)]'
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <span className={`w-6 text-sm font-black ${
-                  player.rank === 1 ? 'text-[var(--secondary)]' : 
-                  player.rank === 2 ? 'text-zinc-400' : 
-                  player.rank === 3 ? 'text-orange-400' : 'text-[var(--text-muted)]'
-                }`}>
-                  #{player.rank}
-                </span>
-                <div className="w-10 h-10 rounded-full bg-[var(--bg)] flex items-center justify-center text-xl border border-[var(--border)]">
-                  {player.avatar}
+          {tab === 'GLOBAL' 
+            ? players.map((player, i) => renderPlayer(player, i))
+            : friends.length === 0
+              ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <Users size={48} className="text-[var(--text-muted)] mb-4 opacity-50" />
+                  <p className="font-bold text-[var(--text-muted)]">{t.friends?.noFriends || 'No friends'}</p>
+                  <p className="text-xs text-[var(--text-muted)] mt-1">{t.friends?.addByCodeHint || 'Add by code'}</p>
                 </div>
-                <div>
-                  <h4 className="font-bold text-sm">{player.name}</h4>
-                  {player.isUser && <span className="text-[8px] font-black uppercase tracking-widest text-[var(--primary)]">You</span>}
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="font-mono text-sm font-black text-[var(--primary)]">{player.score}</p>
-                <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Points</p>
-              </div>
-            </motion.div>
-          ))}
+              )
+              : friends.map((player, i) => renderPlayer(player, i))
+          }
         </div>
       </div>
     </ScreenWrapper>
@@ -1307,6 +1745,70 @@ export const ProfileScreen = () => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [adminStats, setAdminStats] = useState<any>({ totalUsers: 0, retention: 0 });
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editAvatar, setEditAvatar] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.match(/image.*/)) {
+      setEditError('Пожалуйста, выберите изображение');
+      return;
+    }
+
+    setIsUploading(true);
+    setEditError('');
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 256;
+        const MAX_HEIGHT = 256;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+        } else {
+          if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(async (blob) => {
+            if (blob) {
+              const formData = new FormData();
+              formData.append('file', blob, 'avatar.jpg');
+              try {
+                const res = await api.post('/upload', formData, {
+                  headers: { 'Content-Type': 'multipart/form-data' }
+                });
+                if (res.data?.url) {
+                  setEditAvatar(res.data.url);
+                }
+              } catch (err: any) {
+                setEditError('Ошибка при загрузке: ' + (err.response?.data?.message || err.message));
+              } finally {
+                setIsUploading(false);
+              }
+            }
+          }, 'image/jpeg', 0.8);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
@@ -1314,10 +1816,44 @@ export const ProfileScreen = () => {
         if (res.data) setAdminStats(res.data);
       }).catch(console.error);
     }
-  }, [user.role]);
+    // Load friend code if not set
+    if (!user.friendCode && user.role === 'USER') {
+      api.get('/friends/my-code').then(res => {
+        if (res.data?.friendCode) {
+          setUser({ ...user, friendCode: res.data.friendCode });
+        }
+      }).catch(() => {});
+    }
+  }, [user.id, user.role, user.friendCode, setUser]);
 
   const fetchHistory = () => {
     api.get('/wallet/history').then(res => setHistory(res.data)).catch(e => console.error(e));
+  };
+
+  const handleSaveProfile = async () => {
+    if (editName.trim().length < 2) { setEditError('Минимум 2 символа'); return; }
+    setEditSaving(true);
+    setEditError('');
+    try {
+      const res = await api.patch('/auth/profile', {
+        displayName: editName.trim(),
+        avatarUrl: editAvatar.trim() || undefined
+      });
+      setUser({ ...user, name: res.data.displayName || editName.trim(), avatarUrl: res.data.avatarUrl || editAvatar || undefined });
+      setShowEditProfile(false);
+    } catch (e: any) {
+      setEditError(e.response?.data?.message || 'Ошибка сохранения');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const copyFriendCode = () => {
+    if (user.friendCode) {
+      navigator.clipboard.writeText(user.friendCode).catch(() => {});
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
   };
 
   const handleAdminAuth = () => {
@@ -1342,7 +1878,7 @@ export const ProfileScreen = () => {
       <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
-            <BackButton onClick={() => setScreen('EVENTS')} />
+            <BackButton />
             <h2 className="text-2xl font-extrabold tracking-tight">{t.profile.title}</h2>
           </div>
           <LanguageSwitcher />
@@ -1357,7 +1893,13 @@ export const ProfileScreen = () => {
             />
             <div className="absolute inset-4 bg-[var(--primary)]/10 blur-2xl rounded-full" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <Logo className="w-16 h-16 text-[var(--primary)] relative z-10 drop-shadow-2xl" />
+              {user.avatarUrl ? (
+                user.avatarUrl.startsWith('http') 
+                  ? <img src={user.avatarUrl} className="w-14 h-14 rounded-full object-cover relative z-10" alt="avatar" />
+                  : <span className="text-5xl relative z-10">{user.avatarUrl}</span>
+              ) : (
+                <Logo className="w-16 h-16 text-[var(--primary)] relative z-10 drop-shadow-2xl" />
+              )}
             </div>
             <div className="absolute -bottom-1 -right-1 w-10 h-10 bg-[var(--surface)] rounded-full border-4 border-[var(--bg)] flex items-center justify-center z-20 shadow-xl">
               <div className={`w-full h-full rounded-full flex items-center justify-center ${
@@ -1369,6 +1911,13 @@ export const ProfileScreen = () => {
                  <UserIcon size={16} className="text-white" />}
               </div>
             </div>
+            {/* Edit button */}
+            <button
+              onClick={() => { setEditName(user.name); setEditAvatar(user.avatarUrl || ''); setShowEditProfile(true); }}
+              className="absolute -top-1 -right-1 w-8 h-8 bg-[var(--primary)] rounded-full border-2 border-[var(--bg)] flex items-center justify-center z-30 shadow-lg active:scale-90 transition-transform"
+            >
+              <Pencil size={13} className="text-white" />
+            </button>
           </div>
           <h3 className="text-3xl font-black tracking-tight mb-1">{user.name}</h3>
           <div className="flex items-center gap-2">
@@ -1380,6 +1929,19 @@ export const ProfileScreen = () => {
               {user.role} {t.profile.account}
             </span>
           </div>
+          {/* Friend Code */}
+          {user.friendCode && user.role === 'USER' && (
+            <button
+              onClick={copyFriendCode}
+              className="mt-3 flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--surface)] border border-[var(--border)] active:scale-95 transition-transform"
+            >
+              <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">{t.profile.yourCode || 'CODE:'}</span>
+              <span className="text-sm font-black text-white tracking-widest">{user.friendCode}</span>
+              {codeCopied 
+                ? <CheckCircle2 size={13} className="text-green-400" />
+                : <Copy size={13} className="text-[var(--text-muted)]" />}
+            </button>
+          )}
         </div>
 
         <div className="flex-1 space-y-6">
@@ -1390,7 +1952,7 @@ export const ProfileScreen = () => {
                 <div className="bg-[var(--surface)] p-6 rounded-[32px] border border-[var(--border)] relative overflow-hidden shadow-sm">
                   <Trophy size={20} className="text-[var(--primary)] mb-3" />
                   <p className="text-3xl font-black tracking-tight">{user.highScore}</p>
-                  <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">Best Score</p>
+                  <p className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">{t.profile.bestScore || 'Best Score'}</p>
                 </div>
                 <div className="bg-[var(--surface)] p-6 rounded-[32px] border border-[var(--border)] relative overflow-hidden shadow-sm">
                   <Ticket size={20} className="text-[var(--secondary)] mb-3" />
@@ -1407,7 +1969,7 @@ export const ProfileScreen = () => {
                   <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary)]/10 to-transparent" />
                   <div className="flex items-center gap-3 relative z-10">
                     <Gift size={20} className="text-[var(--primary)]" />
-                    <span className="text-lg font-bold">Мои Призы</span>
+                    <span className="text-lg font-bold">{t.profile.prizesShop || 'Мои Призы'}</span>
                   </div>
                   <ChevronRight size={22} className="text-[var(--primary)] relative z-10" />
                 </button>
@@ -1427,7 +1989,7 @@ export const ProfileScreen = () => {
                 >
                   <div className="flex items-center gap-3">
                     <History size={20} className="text-[var(--primary)]" />
-                    <span className="text-lg font-bold">Transaction History</span>
+                    <span className="text-lg font-bold">{t.profile.transactionHistory || 'Transaction History'}</span>
                   </div>
                   <ChevronRight size={22} className="text-[var(--text-muted)]" />
                 </button>
@@ -1484,11 +2046,11 @@ export const ProfileScreen = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-[var(--surface)] p-4 rounded-[24px] border border-[var(--border)]">
                   <p className="text-lg font-black">{adminStats.totalUsers > 1000 ? (adminStats.totalUsers/1000).toFixed(1) + 'k' : adminStats.totalUsers}</p>
-                  <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Users</p>
+                  <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase tracking-widest">{t.profile.users || 'Users'}</p>
                 </div>
                 <div className="bg-[var(--surface)] p-4 rounded-[24px] border border-[var(--border)]">
                   <p className="text-lg font-black">{adminStats.retention}%</p>
-                  <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Retention</p>
+                  <p className="text-[8px] text-[var(--text-muted)] font-bold uppercase tracking-widest">{t.profile.retention || 'Retention'}</p>
                 </div>
               </div>
             </div>
@@ -1552,7 +2114,7 @@ export const ProfileScreen = () => {
               >
                 <div className="w-12 h-1.5 bg-[var(--border)] rounded-full mx-auto mb-6" />
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-2xl font-black">Transaction History</h3>
+                  <h3 className="text-2xl font-black">{t.profile.transactionHistory || 'Transaction History'}</h3>
                   <button onClick={() => setShowHistoryModal(false)} className="p-2 bg-[var(--surface)] rounded-full active:scale-95">
                     <XCircle size={24} className="text-[var(--text)]" />
                   </button>
@@ -1562,13 +2124,13 @@ export const ProfileScreen = () => {
                   {history.length === 0 ? (
                     <div className="text-center p-8 text-[var(--text-muted)]">
                       <History size={48} className="mx-auto mb-4 opacity-50" />
-                      <p>No transactions yet</p>
+                      <p>{t.profile.noTransactions || 'No transactions yet'}</p>
                     </div>
                   ) : (
                     history.map(tx => (
                       <div key={tx.id} className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-[20px] flex justify-between items-center">
                         <div>
-                          <p className="font-bold text-sm">{tx.referenceType === 'PROMO' ? 'Promo Code' : tx.referenceType === 'GAME_SESSION' ? 'Game Reward' : tx.type}</p>
+                          <p className="font-bold text-sm">{tx.referenceType === 'PROMO' ? (t.profile.promoCode || 'Promo Code') : tx.referenceType === 'GAME_SESSION' ? (t.profile.gameReward || 'Game Reward') : tx.type}</p>
                           <p className="text-[10px] text-[var(--text-muted)] mt-1">{new Date(tx.createdAt).toLocaleDateString()} {new Date(tx.createdAt).toLocaleTimeString()}</p>
                         </div>
                         <div className="text-right">
@@ -1584,6 +2146,96 @@ export const ProfileScreen = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Edit Profile Modal */}
+        {showEditProfile && (
+          <div className="fixed inset-0 bg-black/80 z-50 flex items-end justify-center p-0 backdrop-blur-sm">
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="w-full max-w-md bg-[var(--bg)] rounded-t-[32px] p-6 border border-[var(--border)] shadow-2xl"
+            >
+              <div className="w-12 h-1.5 bg-[var(--border)] rounded-full mx-auto mb-6" />
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-2xl font-black">{t.profile.editProfile || 'Редактировать'}</h3>
+                <button onClick={() => setShowEditProfile(false)} className="p-2 bg-[var(--surface)] rounded-full active:scale-95">
+                  <X size={22} className="text-[var(--text)]" />
+                </button>
+              </div>
+
+              {/* Avatar selector */}
+              <div className="mb-5">
+                <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest mb-3">{t.profile.avatarSelect || 'Аватар'}</p>
+                <div className="flex gap-3 flex-wrap mb-3">
+                  {['🎮','🦊','🐉','⚡','🏆','🎯','🔥','🌟','🚀','🤖','💎','👾'].map(emoji => (
+                    <button
+                      key={emoji}
+                      onClick={() => setEditAvatar(emoji)}
+                      className={`w-10 h-10 text-2xl rounded-2xl flex items-center justify-center transition-all ${
+                        editAvatar === emoji ? 'bg-[var(--primary)]/20 border-2 border-[var(--primary)] scale-110' : 'bg-[var(--surface)] border border-[var(--border)]'
+                      }`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2 items-center">
+                    <label className="flex-1 bg-[var(--surface)] hover:bg-[var(--surface-accent)] cursor-pointer border border-dashed border-[var(--border)] hover:border-[var(--primary)] rounded-2xl px-4 py-3 text-sm text-[var(--text)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                      <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} disabled={isUploading} />
+                      {isUploading ? (
+                        <span className="animate-pulse">{t.profile.uploading || 'Oбработка...'}</span>
+                      ) : (
+                        <>
+                          <ImageIcon size={18} className="text-[var(--primary)]" />
+                          <span className="text-[var(--text-muted)] group-hover:text-[var(--text)]">{t.profile.uploadPhoto || 'Загрузить фото'}</span>
+                        </>
+                      )}
+                    </label>
+                    {editAvatar && !isUploading && (
+                      <div className="w-12 h-12 bg-[var(--surface)] border border-[var(--border)] rounded-2xl flex items-center justify-center text-2xl overflow-hidden flex-shrink-0">
+                        {editAvatar.startsWith('http') || editAvatar.startsWith('data:image')
+                          ? <img src={editAvatar} className="w-full h-full object-cover rounded-xl" alt="" />
+                          : editAvatar}
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={editAvatar}
+                    onChange={e => setEditAvatar(e.target.value)}
+                    placeholder={t.profile.orTypeEmoji || "Или введите вручную"}
+                    className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-xl px-4 py-2 text-xs text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--primary)] transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Name */}
+              <div className="mb-6">
+                <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest mb-2">{t.profile.name || 'Имя'}</p>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  maxLength={30}
+                  placeholder={t.profile.name ? `${t.profile.name}...` : "Ваше имя..."}
+                  className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl px-4 py-3 text-[var(--text)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--primary)] transition-colors font-bold"
+                />
+                {editError && <p className="text-red-400 text-xs mt-2 font-medium">{editError}</p>}
+              </div>
+
+              <Button
+                onClick={handleSaveProfile}
+                disabled={editSaving}
+                className="w-full py-4 font-black text-base tracking-wider"
+              >
+                {editSaving ? (t.profile.saving || '...') : (t.profile.save || 'Сохранить')}
+              </Button>
+            </motion.div>
+          </div>
+        )}
 
         {showAdminPrompt && (
           <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
@@ -1656,7 +2308,7 @@ export const SettingsScreen = () => {
     <ScreenWrapper>
       <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
         <div className="flex items-center gap-4 mb-8">
-          <BackButton onClick={() => setScreen('PROFILE')} />
+          <BackButton />
           <h2 className="text-2xl font-extrabold tracking-tight">{t.settings.title}</h2>
         </div>
 
@@ -1735,7 +2387,7 @@ export const SupportScreen = () => {
     <ScreenWrapper>
       <div className="p-6 safe-top safe-pb flex flex-col min-h-full">
         <div className="flex items-center gap-4 mb-8">
-          <BackButton onClick={() => setScreen('PROFILE')} />
+          <BackButton />
           <h2 className="text-2xl font-extrabold tracking-tight">{t.support.title}</h2>
         </div>
 

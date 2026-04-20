@@ -16,6 +16,7 @@ export interface Prize {
 
 export interface User {
   id: string; name: string; role: UserRole; points: number; dailyPoints: number; lastPointsDate: string; streak: number; highScore: number; attempts: number; lastAttemptDate: string; referrals: number; venueGameId?: string;
+  phone?: string; avatarUrl?: string; friendCode?: string;
 }
 
 export interface GameLimit {
@@ -51,12 +52,36 @@ interface GameContextType {
   t: any;
   loginWithPhone: (phone: string, code: string, displayName?: string) => Promise<boolean>;
   logout: () => void;
+  goBack: () => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider = ({ children }: { children: ReactNode }) => {
-  const [screen, setScreen] = useState<Screen>('WELCOME');
+  const [screenState, setScreenState] = useState<Screen>('WELCOME');
+  const [history, setHistory] = useState<Screen[]>(['WELCOME']);
+
+  const setScreen = (newScreen: Screen) => {
+    setHistory(prev => {
+      // Don't push if it's the exact same screen to avoid duplicated steps
+      if (prev[prev.length - 1] === newScreen) return prev;
+      return [...prev, newScreen];
+    });
+    setScreenState(newScreen);
+  };
+
+  const goBack = () => {
+    setHistory(prev => {
+      if (prev.length <= 1) return prev;
+      const newHistory = [...prev];
+      newHistory.pop(); // remove current
+      setScreenState(newHistory[newHistory.length - 1]);
+      return newHistory;
+    });
+  };
+
+  const screen = screenState;
+
   const [language, setLanguage] = useState<Language>('ru');
 
   const [user, setUser] = useState<User>(() => {
@@ -110,7 +135,10 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
             name: res.data.displayName || res.data.phone,
             role: res.data.role || 'USER',
             points: Number(res.data.points),
-            attempts: 50
+            attempts: 50,
+            phone: res.data.phone,
+            avatarUrl: res.data.avatarUrl || undefined,
+            friendCode: res.data.friendCode || undefined,
           }));
           const statsMap = statsRes.data.reduce((acc: any, g: GameLimit) => ({ ...acc, [g.id]: g }), {});
           setGamesStats(statsMap);
@@ -160,7 +188,8 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
         sessionStorage.setItem('arena_token', res.data.accessToken);
         localStorage.setItem('arena_token', res.data.accessToken);
         const p = await api.get('/auth/me');
-        setUser(prev => ({ ...prev, id: p.data.id, name: p.data.displayName || p.data.phone, role: p.data.role || 'USER', points: Number(p.data.points), attempts: 50 }));
+        setUser(prev => ({ ...prev, id: p.data.id, name: p.data.displayName || p.data.phone, role: p.data.role || 'USER', points: Number(p.data.points), attempts: 50,
+          phone: p.data.phone, avatarUrl: p.data.avatarUrl || undefined, friendCode: p.data.friendCode || undefined }));
         setScreen('ONBOARDING');
         return true;
       }
@@ -268,7 +297,7 @@ export const GameProvider = ({ children }: { children: ReactNode }) => {
     <GameContext.Provider value={{
       screen, setScreen, user, setUser, addPoints, useAttempt, updateHighScore,
       language, setLanguage, selectedGameId, setSelectedGameId, theme, setTheme,
-      prizes, setPrizes, gamesStats, refreshGameStats, t, loginWithPhone, logout
+      prizes, setPrizes, gamesStats, refreshGameStats, t, loginWithPhone, logout, goBack
     }}>
       {children}
     </GameContext.Provider>

@@ -114,11 +114,17 @@ export class AdminController {
     return this.sendListResponse(res, await this.adminService.getAuditLogs(query));
   }
 
-  // ==================== TRANSACTIONS ====================
+  // ==================== WALLET TRANSACTIONS ====================
   @Get('wallet_transactions')
   async getTransactions(@Query() query: any, @Res() res: Response) {
     return this.sendListResponse(res, await this.adminService.getTransactions(query));
   }
   @Get('wallet_transactions/:id')
   async getTransaction(@Param('id') id: string) { return this.adminService.getTransaction(id); }
+
+  // ==================== GAME SESSIONS ====================
+  @Get('game_sessions')
+  async getGameSessions(@Query() query: any, @Res() res: Response) {
+    return this.sendListResponse(res, await this.adminService.getGameSessions(query));
+  }
 }

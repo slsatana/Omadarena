@@ -4,11 +4,11 @@ import { Languages, ArrowLeft } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 import { Language } from '../translations';
 
-export const BackButton = ({ onClick, className = "" }: { onClick: () => void; className?: string }) => {
-  const { t } = useGame();
+export const BackButton = ({ onClick, className = "" }: { onClick?: () => void; className?: string }) => {
+  const { t, goBack } = useGame();
   return (
     <button
-      onClick={onClick}
+      onClick={onClick || goBack}
       className={`flex items-center gap-2 px-4 py-2.5 rounded-full glass border border-white/20 text-white shadow-xl backdrop-blur-2xl transition-all hover:scale-105 active:scale-90 z-[100] ${className}`}
     >
       <ArrowLeft size={20} />

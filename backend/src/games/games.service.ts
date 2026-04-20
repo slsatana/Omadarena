@@ -74,8 +74,18 @@ export class GamesService {
   async getLeaderboard(gameId: string) {
     const results = await this.prisma.gameResult.findMany({
       where: {
-        session: { gameId, status: 'SUBMITTED' },
-        reviewStatus: 'ACCEPTED'
+        reviewStatus: 'ACCEPTED',
+        session: {
+          gameId,
+          status: 'SUBMITTED',
+          user: {
+            roleAssignments: {
+              none: {
+                role: { in: ['ADMIN', 'SUPER_ADMIN', 'VENUE'] }
+              }
+            }
+          }
+        }
       },
       include: {
         session: { include: { user: true } }
@@ -92,11 +102,13 @@ export class GamesService {
       const userId = r.session.userId;
       if (!seenUsers.has(userId)) {
         seenUsers.add(userId);
-        leaderboard.push({
-          rank: leaderboard.length + 1,
-          name: r.session.user.displayName || `User ${r.session.user.phone.slice(-4)}`,
-          score: r.rawScore
-        });
+          leaderboard.push({
+            rank: leaderboard.length + 1,
+            name: r.session.user.displayName || `User ${r.session.user.phone.slice(-4)}`,
+            score: r.rawScore,
+            friendCode: r.session.user.friendCode,
+            avatarUrl: r.session.user.avatarUrl
+          });
       }
     }
     return leaderboard;
@@ -104,6 +116,15 @@ export class GamesService {
 
   async getGlobalLeaderboard() {
     const wallets = await this.prisma.wallet.findMany({
+      where: {
+        user: {
+          roleAssignments: {
+            none: {
+              role: { in: ['ADMIN', 'SUPER_ADMIN', 'VENUE'] }
+            }
+          }
+        }
+      },
       orderBy: { balance: 'desc' },
       take: 100,
       include: { user: true }
@@ -112,7 +133,9 @@ export class GamesService {
     return wallets.map((w, index) => ({
       rank: index + 1,
       name: w.user.displayName || `User ${w.user.phone.slice(-4)}`,
-      score: Number(w.balance)
+      score: Number(w.balance),
+      friendCode: w.user.friendCode,
+      avatarUrl: w.user.avatarUrl
     }));
   }
 
